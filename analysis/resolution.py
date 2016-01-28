@@ -26,7 +26,6 @@ parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 do_all = False
 if options.cut==float('-inf'): do_all=True 
 
-jets = ['j0','jnoarea0']
 import pdb
 
 asym = 10 # shift distribution to the right to get better fit and deal with negative pTs
@@ -85,7 +84,7 @@ def readRoot(jet='j0'):
       if statinfo.st_size < 10000: continue #sometimes batch jobs fail
       if nfiles>nfilesmax: continue
       nfiles+=1
-      print filename
+      print '== Reading in '+filename+' =='
       ff = r.TFile(filename)
       tree = ff.Get('oTree')
       nentries = tree.GetEntries()
@@ -95,11 +94,10 @@ def readRoot(jet='j0'):
           tree.GetEntry(jentry)
           
           if not jentry%1000:
-              stdout.write('\r%d'%jentry)
+              stdout.write('== \r%d events read in this file =='%jentry)
               stdout.flush()
 
           jpts = getattr(tree,'%spt'%jet)
-          jareas = getattr(tree,'%sarea'%jet)
           tjpts = getattr(tree,'t%spt'%jet)
           tjetas = getattr(tree,'t%seta'%jet)
           tjmindr = getattr(tree,'t%smindr'%jet)
@@ -107,22 +105,18 @@ def readRoot(jet='j0'):
           rho = tree.rho
           event_weight = tree.event_weight*sampweight
 
-          resjet = []
           truept = []
           recopt = []
           weightjets = []
           for jpt,jarea,tjpt,tjeta,tjmindr in zip(jpts,jareas,tjpts,tjetas,tjmindr):
-              if fabs(tjeta)>1.0: continue
-              if tjpt<20: continue
-              if tjmindr < 0.6: continue 
-              resjet.append(jpt/tjpt)
+              if fabs(tjeta)>options.maxeta or fabs(tjeta)<options.mineta: continue
+              if tjmindr<options.mindr: continue
               truept.append(tjpt)
               recopt.append(jpt)
               weightjets.append(event_weight)
 
           npv = [npv]*len(resjet)
           npvs += npv
-          responses += resjet
           truepts += truept
           recopts += recopt
           weights += weightjets
@@ -130,43 +124,74 @@ def readRoot(jet='j0'):
   print
 
   from numpy import save
-  #save('../output/responses_'+jet+'_'+finalmu,responses)
   #save('../output/truepts_'+jet+'_'+finalmu,truepts)
   #save('../output/recopts_'+jet+'_'+finalmu,recopts)
   #save('../output/weights_'+jet+'_'+finalmu,weights)
-  save('../output/npvs_'+jet+'_'+finalmu,npvs)
+  #save('../output/npvs_'+jet+'_'+finalmu,npvs)
+
+  return recopts,truepts,npvs,weights
 
 def fitres(jet='j0',params=[]):
   if options.root: 
-    readRoot(options.jet)
+    recopts,truepts,npvs,weights = readRoot(options.jet)
+    eta_cuts = [True]*len(truepts) 
+    mindr_cuts = [True]*len(truepts) 
+  else:
+    # truepts, recopts, npvs required
+    filename = options.inputDir+'/'+'truepts_'+options.jet+'_'+options.identifier+'.npy'
+    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    print '== Loading file <'+filename+'> as truth jet pTs =='
+    truepts = load(filename)
+    print '== There are '+len(truepts)+' total jets'
 
-  filename = options.inputDir+'/'+'truepts_'+options.jet+'_'+options.identifier+'.npy'
-  print '== Loading file <'+filename+'> as truth jet pTs =='
-  truepts = load(filename)
-  filename = options.inputDir+'/'+'recopts_'+options.jet+'_'+options.identifier+'.npy'
-  print '== Loading file <'+filename+'> as reco jet pTs =='
-  recopts = load(filename)
-  responses = recopts/truepts
-  filename = options.inputDir+'/'+'npvs_'+options.jet+'_'+options.identifier+'.npy'
-  print '== Loading file <'+filename+'> as NPVs =='
-  npvs = load(filename)
-  if options.mineta>0 or options.maxeta<float('inf'):
+    filename = options.inputDir+'/'+'recopts_'+options.jet+'_'+options.identifier+'.npy'
+    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    print '== Loading file <'+filename+'> as reco jet pTs =='
+    recopts = load(filename)
+    if not len(recopts)==len(truepts):
+      raise RuntimeError('There should be the same number of reco jets as truth jets')
+
+    filename = options.inputDir+'/'+'npvs_'+options.jet+'_'+options.identifier+'.npy'
+    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    print '== Loading file <'+filename+'> as NPVs =='
+    npvs = load(filename)
+    if not len(npvs)==len(truepts):
+      raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
+
+    filename = options.inputDir+'/'+'weights_'+options.jet+'_'+options.identifier+'.npy'
+    if os.file.exists(filename): 
+      print '== Loading file <'+filename+'> as event weights =='
+      weights = load(filename)
+      if not len(weights)==len(truepts):
+        raise RuntimeError('There should be the same number of weights as truth jets (format is one entry per truth jet)')
+    else:
+      print '== No event weights; weighting every event the same'
+      weights = [1]*len(truepts) 
+
     filename = options.inputDir+'/'+'etas_'+options.jet+'_'+options.identifier+'.npy'
-    print '== Loading file <'+filename+'> as truth jet etas =='
-    etas = load(filename)
-  else:
-    print '== No eta cuts set == '
-    etas = array([1]*len(truepts))
-  if options.mindr>float('inf'):
-    filename = options.inputDir+'/'+'mindrs_'+options.jet+'_'+options.identifier+'.npy'
-    print '== Loading file <'+filename+'> as truth jet mindRs =='
-    mindrs = load(filename)
-  else:
-    print '== No mindr cuts set == '
-    mindrs = array([1]*len(truepts))
+    if os.file.exists(filename): 
+      print '== Loading file <'+filename+'> as truth jet etas =='
+      etas = load(filename)
+      if not len(etas)==len(truepts):
+        raise RuntimeError('There should be the same number of etas as truth jets')
+      eta_cuts = numpy.all([abs(etas)<options.mineta,abs(etas)>options.maxeta]) 
+    else:
+      print '== '+filename+' does not exist; no eta cuts set == '
+      eta_cuts = [True]*len(truepts) 
 
-  pdb.set_trace()
-  cuts = numpy.all([truepts>min(ptedges),recopts>options.cut,abs(etas)>options.mineta,abs(etas)<options.maxeta,mindrs>options.mindr],axis=0)
+    filename = options.inputDir+'/'+'mindrs_'+options.jet+'_'+options.identifier+'.npy'
+    if os.file.exists(filename):
+      print '== Loading file <'+filename+'> as truth jet mindRs =='
+      mindrs = load(filename)
+      if not len(mindrs)==len(truepts):
+        raise RuntimeError('There should be the same number of mindRs as truth jets')
+      mindr_cuts = mindrs>options.mindr
+    else:
+      print '== '+filename+' does not exist; no mindR cuts set == '
+      mindr_cuts = [True]*len(truepts) 
+
+  responses = recopts/truepts
+  cuts = numpy.all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts],axis=0)
 
   responses = responses[cuts]
   recopts = recopts[cuts]
@@ -281,7 +306,6 @@ def fitres(jet='j0',params=[]):
   plt.close()
   
   sigma_calculations=[array(sigmaRs)/dg(avgtruept,*Ropt)]
-  if not do_all: sigma_calculations+=[corr_sigmaRs]
   for sigma_calculation,c,l,ls in zip(sigma_calculations,colors,labels,linestyles): 
     plt.plot(avgtruept,sigma_calculation,color=c,linestyle=ls,label=l)
   plt.xlabel('$p_T^{true}$ [GeV]')
