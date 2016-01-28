@@ -1,4 +1,5 @@
 from numpy import load,log,linspace,digitize,array,mean,std,exp
+import os
 import numpy
 from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
@@ -58,7 +59,6 @@ rc('text', usetex=True)
 import matplotlib.mlab as mlab
 
 def readRoot(jet='j0'):
-  import os
   import ROOT as r
   from sys import stdout,argv
   from math import fabs
@@ -139,27 +139,27 @@ def fitres(jet='j0',params=[]):
   else:
     # truepts, recopts, npvs required
     filename = options.inputDir+'/'+'truepts_'+options.jet+'_'+options.identifier+'.npy'
-    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as truth jet pTs =='
     truepts = load(filename)
-    print '== There are '+len(truepts)+' total jets'
+    print '== There are '+str(len(truepts))+' total jets'
 
     filename = options.inputDir+'/'+'recopts_'+options.jet+'_'+options.identifier+'.npy'
-    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as reco jet pTs =='
     recopts = load(filename)
     if not len(recopts)==len(truepts):
       raise RuntimeError('There should be the same number of reco jets as truth jets')
 
     filename = options.inputDir+'/'+'npvs_'+options.jet+'_'+options.identifier+'.npy'
-    if not os.file.exists(filename): raise OSError(filename +' does not exist')
+    if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as NPVs =='
     npvs = load(filename)
     if not len(npvs)==len(truepts):
       raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
 
     filename = options.inputDir+'/'+'weights_'+options.jet+'_'+options.identifier+'.npy'
-    if os.file.exists(filename): 
+    if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as event weights =='
       weights = load(filename)
       if not len(weights)==len(truepts):
@@ -169,25 +169,25 @@ def fitres(jet='j0',params=[]):
       weights = [1]*len(truepts) 
 
     filename = options.inputDir+'/'+'etas_'+options.jet+'_'+options.identifier+'.npy'
-    if os.file.exists(filename): 
+    if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as truth jet etas =='
       etas = load(filename)
       if not len(etas)==len(truepts):
         raise RuntimeError('There should be the same number of etas as truth jets')
       eta_cuts = numpy.all([abs(etas)<options.mineta,abs(etas)>options.maxeta]) 
     else:
-      print '== '+filename+' does not exist; no eta cuts set == '
+      print '== '+filename+' does not exist; no additional eta cuts set == '
       eta_cuts = [True]*len(truepts) 
 
     filename = options.inputDir+'/'+'mindrs_'+options.jet+'_'+options.identifier+'.npy'
-    if os.file.exists(filename):
+    if os.path.exists(filename):
       print '== Loading file <'+filename+'> as truth jet mindRs =='
       mindrs = load(filename)
       if not len(mindrs)==len(truepts):
         raise RuntimeError('There should be the same number of mindRs as truth jets')
       mindr_cuts = mindrs>options.mindr
     else:
-      print '== '+filename+' does not exist; no mindR cuts set == '
+      print '== '+filename+' does not exist; no additional mindR cuts set == '
       mindr_cuts = [True]*len(truepts) 
 
   responses = recopts/truepts
@@ -210,9 +210,6 @@ def fitres(jet='j0',params=[]):
       trueptdata = truepts[ptbins==ptbin]
       #print ptedges[ptbin],len(resdata)
       if len(resdata)<20: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])
-      '''if ptbin==1: 
-          resdata = resdata[resdata<mean(resdata)+sigma_frac*std(resdata)]
-          ptdata = ptdata[resdata<mean(resdata)+sigma_frac*std(resdata)]'''
       gfunc = norm
       (mu,sigma) = gfunc.fit(resdata)
       n,bins,patches = plt.hist(resdata,normed=True,bins=50)
