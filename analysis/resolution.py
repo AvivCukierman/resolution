@@ -204,6 +204,8 @@ def fitres(jet='j0',params=[]):
   sigmas = []
   sigmaRs = []
 
+  pdb.set_trace()
+
   for ptbin in xrange(1,len(ptedges)): 
       resdata = responses[ptbins==ptbin]
       ptdata = recopts[ptbins==ptbin]
