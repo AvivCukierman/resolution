@@ -203,12 +203,16 @@ def fitres(jet='j0',params=[]):
   npvs = npvs[cuts]
   weights = weights[cuts]
 
+  ptbins = digitize(truepts,ptedges)
+
   maxnpv = options.maxnpv
   if (options.maxnpv-options.minnpv)%options.npvbin==0: maxnpv+=1
   npvedges = range(options.minnpv,maxnpv,options.npvbin)
   npvbins = digitize(npvs,npvedges)
 
-  ptbins = digitize(truepts,ptedges)
+  npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges)-1)}
+  npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges)-1)}
+
   for npvbin in xrange(1,len(npvedges)-1):
     avgres = []
     avgpt = []
@@ -221,7 +225,7 @@ def fitres(jet='j0',params=[]):
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       #print ptedges[ptbin],len(resdata)
-      if len(resdata)<20: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
+      if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       gfunc = norm
       (mu,sigma) = gfunc.fit(resdata)
       n,bins,patches = plt.hist(resdata,normed=True,bins=50)
@@ -300,30 +304,64 @@ def fitres(jet='j0',params=[]):
     plt.close()
 
 
-    sigma_calculations=[array(sigmas)/dg(avgtruept,*Ropt)]
-    colors=['b']
-    linestyles=['-']
-    labels=[options.jet]
-    for sigma_calculation,c,l,ls in zip(sigma_calculations,colors,labels,linestyles): 
-      plt.plot(avgtruept,sigma_calculation,color=c,linestyle=ls,label=l)
+    sigma_calculation=array(sigmas)/dg(avgtruept,*Ropt)
+    npv_sigmas[npvedges[npvbin]] = sigma_calculation
+    plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-    plt.ylim(min(sigma_calculations[0])-1,max(sigma_calculations[0])+1)
+    plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
     plt.xlim(0,80)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
     plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.jet+'_'+options.identifier+'.png')
     plt.close()
     
-    sigma_calculations=[array(sigmaRs)/dg(avgtruept,*Ropt)]
-    for sigma_calculation,c,l,ls in zip(sigma_calculations,colors,labels,linestyles): 
-      plt.plot(avgtruept,sigma_calculation,color=c,linestyle=ls,label=l)
+    sigma_calculation=array(sigmaRs)/dg(avgtruept,*Ropt)
+    npv_sigmaRs[npvedges[npvbin]] = sigma_calculation
+    plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-    plt.ylim(0,max(sigma_calculations[0])+0.1) 
+    plt.ylim(0,max(sigma_calculation)+0.1) 
     plt.xlim(0,150)
     plt.legend(loc='upper right',frameon=False,numpoints=1)
     plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
     plt.close()
+
+  colors = ['b','r','g','purple','orange','black']
+  linestyles = ['-']*6
+  labels = ['NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]) for npvbin in xrange(1,len(npvedges)-1)] 
+  if len(labels)>6:
+    colors = colors*2
+    linestyles+=['--']*6
+  if len(labels)>12:
+    raise RuntimeError('NPV bins are too small. Make them bigger.')
+
+  npv_keys = npv_sigmas.keys() 
+  npv_keys.sort()
+  for i,npv in enumerate(npv_keys):
+    plt.plot(avgtruept,npv_sigmas[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
+  lowlim = min([min(s) for s in npv_sigmas.values()])
+  highlim = max([max(s) for s in npv_sigmas.values()])
+  plt.ylim(lowlim-1,highlim+1)
+  plt.xlim(0,80)
+  plt.legend(loc='upper left',frameon=False,numpoints=1)
+  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.jet+'_'+options.identifier+'.png')
+  plt.close()
+
+  for i,npv in enumerate(npv_keys):
+    plt.plot(avgtruept,npv_sigmaRs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
+  highlim = max([max(s) for s in npv_sigmaRs.values()])
+  plt.ylim(0,highlim+0.1)
+  plt.xlim(0,80)
+  plt.legend(loc='upper left',frameon=False,numpoints=1)
+  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.jet+'_'+options.identifier+'.png')
+  plt.close()
+
+
+
 
   return Ropt
 
