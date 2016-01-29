@@ -1,4 +1,4 @@
-from numpy import load,log,linspace,digitize,array,mean,std,exp,all
+from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt
 import os
 import numpy
 from scipy.optimize import curve_fit,fsolve
@@ -23,9 +23,9 @@ parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, def
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
-parser.add_option("--minnpv", help="min abs(eta) on truth jets", type=float, default=5)
-parser.add_option("--maxnpv", help="max abs(eta) on truth jets", type=float, default=30)
-parser.add_option("--npvbin", help="min dr on truth jets", type=float, default=5)
+parser.add_option("--minnpv", help="min abs(eta) on truth jets", type=int, default=5)
+parser.add_option("--maxnpv", help="max abs(eta) on truth jets", type=int, default=30)
+parser.add_option("--npvbin", help="min dr on truth jets", type=int, default=5)
 
 (options, args) = parser.parse_args()
 
@@ -148,7 +148,7 @@ def fitres(jet='j0',params=[]):
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as truth jet pTs =='
     truepts = load(filename)
-    print '== There are '+str(len(truepts))+' total jets'
+    print '== There are '+str(len(truepts))+' total jets =='
 
     filename = options.inputDir+'/'+'recopts_'+options.jet+'_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
@@ -171,7 +171,7 @@ def fitres(jet='j0',params=[]):
       if not len(weights)==len(truepts):
         raise RuntimeError('There should be the same number of weights as truth jets (format is one entry per truth jet)')
     else:
-      print '== No event weights; weighting every event the same'
+      print '== No event weights; weighting every event the same =='
       weights = array([1]*len(truepts))
 
     filename = options.inputDir+'/'+'etas_'+options.jet+'_'+options.identifier+'.npy'
@@ -211,10 +211,10 @@ def fitres(jet='j0',params=[]):
   npvedges = range(options.minnpv,maxnpv,options.npvbin)
   npvbins = digitize(npvs,npvedges)
 
-  npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges)-1)}
-  npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges)-1)}
+  npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
-  for npvbin in xrange(1,len(npvedges)-1):
+  for npvbin in xrange(1,len(npvedges)):
     avgres = []
     avgpt = []
     avgtruept = []
@@ -225,11 +225,13 @@ def fitres(jet='j0',params=[]):
       resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      #print ptedges[ptbin],len(resdata)
+      weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
+      # maximum likelihood estimates
+      mu = average(resdata,weights=weightdata)
+      sigma = sqrt(average((resdata-mu)**2,weights=weightdata))
+      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
       gfunc = norm
-      (mu,sigma) = gfunc.fit(resdata)
-      n,bins,patches = plt.hist(resdata,normed=True,bins=50)
       y = gfunc.pdf( bins, mu, sigma)
       l = plt.plot(bins, y, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
@@ -237,12 +239,15 @@ def fitres(jet='j0',params=[]):
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.jet+'_'+options.identifier+'.png')
       plt.close()
       avgres.append(mu)
-      avgpt.append(mean(ptdata))
-      avgtruept.append(mean(trueptdata))
+      avgpt.append(average(ptdata,weights=weightdata))
+      avgtruept.append(average(trueptdata,weights=weightdata))
       sigmaRs.append(sigma)
 
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50)
-      (mu,sigma) = gfunc.fit(ptdata)
+      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
+      # maximum likelihood estimates
+      mu = average(ptdata,weights=weightdata)
+      sigma = sqrt(average((ptdata-mu)**2,weights=weightdata))
+      gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
       l = plt.plot(bins, y, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}$')
@@ -329,7 +334,7 @@ def fitres(jet='j0',params=[]):
 
   colors = ['b','r','g','purple','orange','black']
   linestyles = ['-']*6
-  labels = ['NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]) for npvbin in xrange(1,len(npvedges)-1)] 
+  labels = ['NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]) for npvbin in xrange(1,len(npvedges))] 
   if len(labels)>6:
     colors = colors*2
     linestyles+=['--']*6
@@ -360,8 +365,6 @@ def fitres(jet='j0',params=[]):
   plt.legend(loc='upper left',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.jet+'_'+options.identifier+'.png')
   plt.close()
-
-
 
 
   return Ropt
