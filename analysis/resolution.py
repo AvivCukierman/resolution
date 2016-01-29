@@ -55,7 +55,8 @@ def g1(x,a,b,c):
     func = lambda y: ax-g(y,a,b,c)
     return fsolve(func,ax)
 
-ptedges = range(20,60,2)+range(60,150,5)
+#ptedges = range(20,60,2)+range(60,150,5)
+ptedges = range(20,80,2)
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
