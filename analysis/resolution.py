@@ -19,7 +19,7 @@ parser.add_option("-r","--root", help="Root input",action="store_true", default=
 # Root configuration
 parser.add_option("--jetpt", help="reco jet pT branch name",type=str, default="j0pt")
 parser.add_option("--tjetpt", help="truth jet pT branch name",type=str, default="tj0pt")
-parser.add_option("--npv", help="NPV branch name",type=str, default="npv")
+parser.add_option("--npv", help="NPV branch name",type=str, default="NPV")
 parser.add_option("--tjeteta", help="truth jet eta branch name",type=str, default="tj0eta")
 parser.add_option("--tjetmindr", help="truth jet mindr branch name",type=str, default="tj0mindr")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
@@ -81,7 +81,7 @@ rc('text', usetex=True)
 #plt.style.use('atlas')
 import matplotlib.mlab as mlab
 
-def readRoot(jet='j0'):
+def readRoot():
   import ROOT as r
   from sys import stdout,argv
   from math import fabs
@@ -153,7 +153,7 @@ def readRoot(jet='j0'):
       truept = []
       recopt = []
       weightjets = []
-      for i,jpt,tjpt in enumerate(zip(jpts,tjpts)):
+      for i,(jpt,tjpt) in enumerate(zip(jpts,tjpts)):
           if has_eta:
             tjeta = tjetas[i]
             if fabs(tjeta)>options.maxeta or fabs(tjeta)<options.mineta: continue
@@ -182,7 +182,7 @@ def readRoot(jet='j0'):
 
 def fitres(params=[]):
   if options.root: 
-    recopts,truepts,npvs,weights = readRoot(jet)
+    recopts,truepts,npvs,weights = readRoot()
     eta_cuts = [True]*len(truepts) 
     mindr_cuts = [True]*len(truepts) 
     print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be faster. =='
