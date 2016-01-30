@@ -34,6 +34,9 @@ parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
+parser.add_option("--minpt", help="min truth pt", type=int, default=20)
+parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
+parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
 
 (options, args) = parser.parse_args()
 
@@ -73,7 +76,7 @@ def g1(x,a,b,c):
     return fsolve(func,ax)
 
 #ptedges = range(20,60,2)+range(60,150,5)
-ptedges = range(20,80,2)
+ptedges = range(options.minpt,options.maxpt,options.ptbin)
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
