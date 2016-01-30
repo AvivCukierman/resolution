@@ -16,8 +16,15 @@ parser.add_option("--numEvents", help="How many events to include",type=int, def
 parser.add_option("-i","--identifier", help="sample identifier",type=str, default="myjets")
 parser.add_option("-r","--root", help="Root input",action="store_true", default=False)
 
+# Root configuration
+parser.add_option("--jetpt", help="reco jet pT branch name",type=str, default="j0pt")
+parser.add_option("--tjetpt", help="truth jet pT branch name",type=str, default="tj0pt")
+parser.add_option("--npv", help="NPV branch name",type=str, default="npv")
+parser.add_option("--tjeteta", help="truth jet eta branch name",type=str, default="tj0eta")
+parser.add_option("--tjetmindr", help="truth jet mindr branch name",type=str, default="tj0mindr")
+parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
+
 # jet configuration
-parser.add_option("-j","--jet", help="jet identifier",type=str, default="j0")
 parser.add_option("-c","--cut", default=float('-inf'), type=float, help="low pT cut on reco jets")
 parser.add_option("--mineta", help="min abs(eta) on truth jets", type=float, default=0)
 parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, default=float('inf'))
@@ -96,18 +103,18 @@ def readRoot(jet='j0'):
 
   # make sure the branches are compatible between the two
   branches = set(i.GetName() for i in tree.GetListOfBranches())
-  if '%spt'%jet not in branches: raise RuntimeError('%spt branch does not exist. This is the branch containing reco jet pTs.'%jet)
-  else: print '== \'%spt\' branch is being read as reco jet pTs =='%jet
-  if 't%spt'%jet not in branches: raise RuntimeError('t%spt branch does not exist. This is the branch containing truth jet pTs.'%jet)
-  else: print '== \'t%spt\' branch is being read as truth jet pTs =='%jet
-  if 'NPV' not in branches: raise RuntimeError('NPV branch does not exist. This is the branch containing NPVs.')
-  else: print '== \'NPV\' branch is being read as NPVs =='
-  if 'event_weight' not in branches: print '== \'event_weight\' branch does not exist; weighting every event the same =='  
-  else: print '== \'event_weight\' branch is being read as event weights =='
-  if 't'+jet+'eta' not in branches: print '== \''+'t'+jet+'eta'+'\' branch does not exist; no eta cuts set =='  
-  else: print '== \''+'t'+jet+'eta'+'\' branch being read as truth jet etas =='
-  if 't'+jet+'mindr' not in branches: print '== \''+'t'+jet+'mindr'+'\' branch does not exist; no mindr cuts set =='  
-  else: print '== \''+'t'+jet+'mindr'+'\' branch being read as truth jet mindrs =='
+  if options.jetpt not in branches: raise RuntimeError(options.jetpt+' branch does not exist. This is the branch containing reco jet pTs.')
+  else: print '== \''+options.jetpt+'\' branch is being read as reco jet pTs =='
+  if options.tjetpt not in branches: raise RuntimeError(options.tjetpt+' branch does not exist. This is the branch containing truth jet pTs.')
+  else: print '== \''+options.tjetpt+'\' branch is being read as truth jet pTs =='
+  if options.npv not in branches: raise RuntimeError(options.npv+' branch does not exist. This is the branch containing NPVs.')
+  else: print '== \''+options.npv+'\' branch is being read as NPVs =='
+  if options.event_weight not in branches: print '== \''+options.event_weight+'\' branch does not exist; weighting every event the same =='  
+  else: print '== \''+options.event_weight+'\' branch is being read as event weights =='
+  if options.tjeteta not in branches: print '== \''+options.tjeteta+'\' branch does not exist; no eta cuts set =='  
+  else: print '== \''+options.tjeteta+'\' branch being read as truth jet etas =='
+  if options.tjetmindr not in branches: print '== \''+options.tjetmindr+'\' branch does not exist; no mindr cuts set =='  
+  else: print '== \''+options.tjetmindr+'\' branch being read as truth jet mindrs =='
 
   nentries = tree.GetEntries()
 
