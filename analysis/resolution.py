@@ -103,18 +103,29 @@ def readRoot(jet='j0'):
 
   # make sure the branches are compatible between the two
   branches = set(i.GetName() for i in tree.GetListOfBranches())
+  # required:
   if options.jetpt not in branches: raise RuntimeError(options.jetpt+' branch does not exist. This is the branch containing reco jet pTs.')
   else: print '== \''+options.jetpt+'\' branch is being read as reco jet pTs =='
   if options.tjetpt not in branches: raise RuntimeError(options.tjetpt+' branch does not exist. This is the branch containing truth jet pTs.')
   else: print '== \''+options.tjetpt+'\' branch is being read as truth jet pTs =='
   if options.npv not in branches: raise RuntimeError(options.npv+' branch does not exist. This is the branch containing NPVs.')
   else: print '== \''+options.npv+'\' branch is being read as NPVs =='
+  # optional:
+  has_event_weight = False
+  has_eta = False
+  has_mindr = False
   if options.event_weight not in branches: print '== \''+options.event_weight+'\' branch does not exist; weighting every event the same =='  
-  else: print '== \''+options.event_weight+'\' branch is being read as event weights =='
+  else:
+    has_event_weight=True
+    print '== \''+options.event_weight+'\' branch is being read as event weights =='
   if options.tjeteta not in branches: print '== \''+options.tjeteta+'\' branch does not exist; no eta cuts set =='  
-  else: print '== \''+options.tjeteta+'\' branch being read as truth jet etas =='
+  else:
+    has_eta = True
+    print '== \''+options.tjeteta+'\' branch being read as truth jet etas =='
   if options.tjetmindr not in branches: print '== \''+options.tjetmindr+'\' branch does not exist; no mindr cuts set =='  
-  else: print '== \''+options.tjetmindr+'\' branch being read as truth jet mindrs =='
+  else:
+    has_mindr = True
+    print '== \''+options.tjetmindr+'\' branch being read as truth jet mindrs =='
 
   nentries = tree.GetEntries()
 
@@ -131,23 +142,29 @@ def readRoot(jet='j0'):
           stdout.write('== \r%d events read ==\n'%jentry)
           stdout.flush()
 
-      jpts = getattr(tree,'%spt'%jet)
-      tjpts = getattr(tree,'t%spt'%jet)
-      tjetas = getattr(tree,'t%seta'%jet)
-      tjmindr = getattr(tree,'t%smindr'%jet)
+      jpts = getattr(tree,options.jetpt)
+      tjpts = getattr(tree,options.tjetpt)
       npv = tree.NPV
-      #rho = tree.rho
-      event_weight = tree.event_weight*sampweight
+
+      if has_eta: tjetas = getattr(tree,options.tjeteta)
+      if has_mindr: tjmindrs = getattr(tree,options.tjetmindr)
+      if has_event_weight: event_weight = tree.event_weight*sampweight
 
       truept = []
       recopt = []
       weightjets = []
-      for jpt,tjpt,tjeta,tjmindr in zip(jpts,tjpts,tjetas,tjmindr):
-          if fabs(tjeta)>options.maxeta or fabs(tjeta)<options.mineta: continue
-          if tjmindr<options.mindr: continue
+      for i,jpt,tjpt in enumerate(zip(jpts,tjpts)):
+          if has_eta:
+            tjeta = tjetas[i]
+            if fabs(tjeta)>options.maxeta or fabs(tjeta)<options.mineta: continue
+          if has_mindr:
+            tjmindr = tjmindrs[i]
+            if tjmindr<options.mindr: continue
           truept.append(tjpt)
           recopt.append(jpt)
-          weightjets.append(event_weight)
+          if has_event_weight:
+            weightjets.append(event_weight)
+          else: weightjets.append(1) #set all events to have the same weight
 
       npv = [npv]*len(truept)
       npvs += npv
@@ -156,14 +173,14 @@ def readRoot(jet='j0'):
       weights += weightjets
 
   from numpy import save
-  save(options.submitDir+'/truepts_'+jet+'_'+finalmu,truepts)
-  save(options.submitDir+'/recopts_'+jet+'_'+finalmu,recopts)
-  save(options.submitDir+'/weights_'+jet+'_'+finalmu,weights)
-  save(options.submitDir+'/npvs_'+jet+'_'+finalmu,npvs)
+  save(options.submitDir+'/truepts_'+finalmu,truepts)
+  save(options.submitDir+'/recopts_'+finalmu,recopts)
+  save(options.submitDir+'/npvs_'+finalmu,npvs)
+  if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
 
   return array(recopts),array(truepts),array(npvs),array(weights)
 
-def fitres(jet='j0',params=[]):
+def fitres(params=[]):
   if options.root: 
     recopts,truepts,npvs,weights = readRoot(jet)
     eta_cuts = [True]*len(truepts) 
@@ -172,27 +189,27 @@ def fitres(jet='j0',params=[]):
     print '== There are '+str(len(truepts))+' total jets =='
   else:
     # truepts, recopts, npvs required
-    filename = options.submitDir+'/'+'truepts_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'truepts_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as truth jet pTs =='
     truepts = load(filename)
     print '== There are '+str(len(truepts))+' total jets =='
 
-    filename = options.submitDir+'/'+'recopts_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'recopts_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as reco jet pTs =='
     recopts = load(filename)
     if not len(recopts)==len(truepts):
       raise RuntimeError('There should be the same number of reco jets as truth jets')
 
-    filename = options.submitDir+'/'+'npvs_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'npvs_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as NPVs =='
     npvs = load(filename)
     if not len(npvs)==len(truepts):
       raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
 
-    filename = options.submitDir+'/'+'weights_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'weights_'+options.identifier+'.npy'
     if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as event weights =='
       weights = load(filename)
@@ -202,7 +219,7 @@ def fitres(jet='j0',params=[]):
       print '== '+filename+' does not exist; weighting every event the same =='
       weights = array([1]*len(truepts))
 
-    filename = options.submitDir+'/'+'etas_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'etas_'+options.identifier+'.npy'
     if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as truth jet etas =='
       etas = load(filename)
@@ -213,7 +230,7 @@ def fitres(jet='j0',params=[]):
       print '== '+filename+' does not exist; no additional eta cuts set (if you started reading from a root file, this is ok) =='
       eta_cuts = [True]*len(truepts) 
 
-    filename = options.submitDir+'/'+'mindrs_'+jet+'_'+options.identifier+'.npy'
+    filename = options.submitDir+'/'+'mindrs_'+options.identifier+'.npy'
     if os.path.exists(filename):
       print '== Loading file <'+filename+'> as truth jet mindRs =='
       mindrs = load(filename)
@@ -264,7 +281,7 @@ def fitres(jet='j0',params=[]):
       l = plt.plot(bins, y, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
       avgres.append(mu)
       avgpt.append(average(ptdata,weights=weightdata))
@@ -280,7 +297,7 @@ def fitres(jet='j0',params=[]):
       l = plt.plot(bins, y, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/gbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/gbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
       sigmas.append(sigma)
 
@@ -295,7 +312,7 @@ def fitres(jet='j0',params=[]):
     if do_all: plt.ylim(-0.5,2)
     else: plt.ylim(0,2)
     plt.xlim(0,80)
-    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     #g = R*t:
@@ -305,7 +322,7 @@ def fitres(jet='j0',params=[]):
     if do_all: plt.ylim(-10,80)
     else: plt.ylim(0,80)
     plt.xlim(0,80)
-    plt.savefig(options.plotDir+'/jetg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     #dg = d(R*t):
@@ -314,7 +331,7 @@ def fitres(jet='j0',params=[]):
     plt.ylabel('$g\'(p_T^{true})$')
     plt.ylim(0,1)
     plt.xlim(0,80)
-    plt.savefig(options.plotDir+'/jetdg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetdg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     plt.plot(avgtruept,g1(avgpt,*Ropt),'.')
@@ -322,7 +339,7 @@ def fitres(jet='j0',params=[]):
     plt.ylabel('$g^{-1}(<p_T^{reco}>)$ [GeV]')
     plt.xlim(0,80)
     plt.ylim(0,80)
-    plt.savefig(options.plotDir+'/jetg1_ptttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetg1_ptttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     plt.plot(avgtruept,g1(avgpt,*Ropt)/avgtruept,'.')
@@ -330,7 +347,7 @@ def fitres(jet='j0',params=[]):
     plt.ylabel('$g^{-1}(<p_T^{reco}>)/p_T^{true}$')
     plt.xlim(0,80)
     plt.ylim(0.95,1.05)
-    plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
 
@@ -342,7 +359,7 @@ def fitres(jet='j0',params=[]):
     plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
     plt.xlim(0,80)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
     
     sigma_calculation=array(sigmaRs)/dg(avgtruept,*Ropt)
@@ -353,7 +370,7 @@ def fitres(jet='j0',params=[]):
     plt.ylim(0,max(sigma_calculation)+0.1) 
     plt.xlim(0,150)
     plt.legend(loc='upper right',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+jet+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
   colors = ['b','r','g','purple','orange','black']
@@ -376,7 +393,7 @@ def fitres(jet='j0',params=[]):
   plt.ylim(lowlim-1,highlim+1)
   plt.xlim(0,80)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+jet+'_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.identifier+'.png')
   plt.close()
 
   for i,npv in enumerate(npv_keys):
@@ -387,10 +404,10 @@ def fitres(jet='j0',params=[]):
   plt.ylim(0,highlim+0.1)
   plt.xlim(0,80)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+jet+'_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.identifier+'.png')
   plt.close()
 
 
   return Ropt
 
-j0fit = fitres(options.jet)
+j0fit = fitres()
