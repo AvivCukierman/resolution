@@ -21,12 +21,12 @@ The script automatically writes out the files to numpy arrays and stores them in
 ### Numpy
 The default is to use numpy files as the input.
 
-You should store your numpy files in the `submitDir` directory. The only required files are:
-`'truepts_'+identifier+'.npy'` (the pT of reconstructed jets)
-`'recopts_'+identifier+'.npy'` (the pT of the truth jets matched to those reconstructed jets)
-`'npvs_'+identifier+'.npy'` (the NPV of the event that the jet is in - should be the same length as the above two arrays)
+You should store your numpy files in the `submitDir` directory. The only required files are:  
+`'truepts_'+identifier+'.npy'` (the pT of reconstructed jets)  
+`'recopts_'+identifier+'.npy'` (the pT of the truth jets matched to those reconstructed jets)  
+`'npvs_'+identifier+'.npy'` (the NPV of the event that the jet is in - should be the same length as the above two arrays)  
 
-The optional files are:
-`'etas_'+identifier+'.npy'` (the eta of the truth jets)
-`'mindrs_'+identifier+'.npy'` (the minimum dR from the truth jet to any other truth jet - for most studies, it's recommend to examine only isolated truth jets)
-`'weights_'+identifier+'.npy'` (the weight of the event that the jet is in - should be the same length as the above two arrays)
+The optional files are:  
+`'etas_'+identifier+'.npy'` (the eta of the truth jets)  
+`'mindrs_'+identifier+'.npy'` (the minimum dR from the truth jet to any other truth jet - for most studies, it's recommend to examine only isolated truth jets)  
+`'weights_'+identifier+'.npy'` (the weight of the event that the jet is in - should be the same length as the above two arrays)  
