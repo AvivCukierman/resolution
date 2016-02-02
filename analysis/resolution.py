@@ -75,8 +75,6 @@ def g1(x,a,b,c):
     func = lambda y: ax-g(y,a,b,c)
     return fsolve(func,ax)
 
-#ptedges = range(20,60,2)+range(60,150,5)
-ptedges = range(options.minpt,options.maxpt,options.ptbin)
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -244,6 +242,9 @@ def fitres(params=[]):
       print '== '+filename+' does not exist; no additional mindR cuts set (if you started reading from a root file, this is ok) =='
       mindr_cuts = [True]*len(truepts) 
 
+  maxpt = options.maxpt
+  if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
+  ptedges = range(options.minpt,maxpt,options.ptbin)
   cuts = all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts],axis=0)
 
   recopts = recopts[cuts]
@@ -263,6 +264,7 @@ def fitres(params=[]):
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   for npvbin in xrange(1,len(npvedges)):
+    print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
     avgres = []
     avgpt = []
     avgtruept = []
@@ -270,6 +272,7 @@ def fitres(params=[]):
     sigmaRs = []
 
     for ptbin in xrange(1,len(ptedges)): 
+      #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
       resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
@@ -300,7 +303,7 @@ def fitres(params=[]):
       l = plt.plot(bins, y, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/gbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
       sigmas.append(sigma)
 
@@ -325,29 +328,29 @@ def fitres(params=[]):
     if do_all: plt.ylim(-10,80)
     else: plt.ylim(0,80)
     plt.xlim(0,80)
-    plt.savefig(options.plotDir+'/jetg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     #dg = d(R*t):
     plt.plot(xp,dg(xp,*Ropt),'r-')
     plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$g\'(p_T^{true})$')
+    plt.ylabel('$f\'(p_T^{true})$')
     plt.ylim(0,1)
     plt.xlim(0,80)
-    plt.savefig(options.plotDir+'/jetdg_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     plt.plot(avgtruept,g1(avgpt,*Ropt),'.')
     plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$g^{-1}(<p_T^{reco}>)$ [GeV]')
+    plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
     plt.xlim(0,80)
     plt.ylim(0,80)
-    plt.savefig(options.plotDir+'/jetg1_ptttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetf1_ptttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     plt.plot(avgtruept,g1(avgpt,*Ropt)/avgtruept,'.')
     plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$g^{-1}(<p_T^{reco}>)/p_T^{true}$')
+    plt.ylabel('$f^{-1}(<p_T^{reco}>)/p_T^{true}$')
     plt.xlim(0,80)
     plt.ylim(0.95,1.05)
     plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
