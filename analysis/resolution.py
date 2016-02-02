@@ -1,6 +1,7 @@
 from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt
 import os
 import numpy
+from numpy import save
 from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
 from operator import sub
@@ -173,7 +174,6 @@ def readRoot():
       recopts += recopt
       weights += weightjets
 
-  from numpy import save
   save(options.submitDir+'/truepts_'+finalmu,truepts)
   save(options.submitDir+'/recopts_'+finalmu,recopts)
   save(options.submitDir+'/npvs_'+finalmu,npvs)
@@ -262,6 +262,7 @@ def fitres(params=[]):
 
   npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
@@ -311,6 +312,7 @@ def fitres(params=[]):
 
     #Fit to response vs. pTtrue
     Ropt, Rcov = curve_fit(R, avgtruept, avgres)
+    Ropts[npvedges[npvbin]] = Ropt 
 
     plt.plot(truepts,responses,'.',avgtruept,avgres,'o',xp,R(xp,*Ropt),'r-')
     plt.xlabel('$p_T^{true}$ [GeV]')
@@ -345,7 +347,7 @@ def fitres(params=[]):
     plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
     plt.xlim(0,80)
     plt.ylim(0,80)
-    plt.savefig(options.plotDir+'/jetf1_ptttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
     plt.plot(avgtruept,g1(avgpt,*Ropt)/avgtruept,'.')
@@ -414,6 +416,11 @@ def fitres(params=[]):
   plt.close()
 
 
-  return Ropt
+  return Ropts,npv_sigmas,npv_sigmaRs,avgtruept
 
-j0fit = fitres()
+(fit,sigmas,sigmaRs,pttrue) = fitres()
+import pickle
+pickle.dump(fit,open(options.submitDir+'/fit_'+options.identifier+'.p','wb'))
+pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.identifier+'.p','wb'))
+pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.identifier+'.p','wb'))
+pickle.dump(pttrue,open(options.submitDir+'/pttruebins_'+options.identifier+'.p','wb'))
