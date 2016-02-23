@@ -1,4 +1,4 @@
-from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt
+from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray
 import os
 import numpy
 from numpy import save
@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
 from operator import sub
 from optparse import OptionParser
+os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
 parser = OptionParser()
 
@@ -13,7 +14,7 @@ parser = OptionParser()
 parser.add_option("--inputDir", help="Directory containing input files",type=str, default="../data")
 parser.add_option("--submitDir", help="Directory containing output files",type=str, default="../output")
 parser.add_option("--plotDir", help="Directory containing plots",type=str, default="../plots")
-parser.add_option("--numEvents", help="How many events to include",type=int, default=100000)
+parser.add_option("--numEvents", help="How many events to include (set to -1 for all events)",type=int, default=100000)
 parser.add_option("-i","--identifier", help="sample identifier",type=str, default="myjets")
 parser.add_option("-r","--root", help="Root input",action="store_true", default=False)
 
@@ -63,7 +64,7 @@ def R(x,a,b,c):
 
 def g(x,a,b,c):
     ax = array(x)
-    return R(x,a,b,c)*x 
+    return R(x,a,b,c)*ax 
 
 #derivative of g
 def dg(x,a,b,c):
@@ -71,10 +72,18 @@ def dg(x,a,b,c):
     result =  a + b/log(ax+asym) - b/log(ax+asym)**2*ax/(ax+asym) + c/log(ax+asym)**2 - 2*c/log(ax+asym)**3*ax/(ax+asym)
     return result
 
+memoized = {} #memoize results to reduce computation time
 def g1(x,a,b,c):
     ax = array(x)
-    func = lambda y: ax-g(y,a,b,c)
-    return fsolve(func,ax)
+    result = []
+    for x in ax:
+      approx = round(x,1)
+      if approx not in memoized:
+        func = lambda y: approx-g(y,a,b,c)
+        memoized[approx] = fsolve(func,approx)
+        #print approx,memoized[approx]
+      result.append(memoized[approx])
+    return asarray(result)
 
 
 import matplotlib.pyplot as plt
@@ -137,7 +146,7 @@ def readRoot():
   recopts = []
   weights = [] 
   for jentry in xrange(nentries):
-      if jentry>options.numEvents: continue
+      if jentry>options.numEvents and options.numEvents>0: continue
       tree.GetEntry(jentry)
       
       if not jentry%1000:
@@ -324,6 +333,7 @@ def fitres(params=[]):
     plt.close()
 
     #g = R*t:
+    print Ropt
     plt.plot(truepts,recopts,'.',avgtruept,avgpt,'o',xp,R(xp,*Ropt)*array(xp),'r-')
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco}$ [GeV]')
@@ -342,7 +352,8 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
-    plt.plot(avgtruept,g1(avgpt,*Ropt),'.')
+    estpts = g1(recopts,*Ropt)
+    plt.plot(truepts,estpts,'.',avgtruept,g1(avgpt,*Ropt),'go')
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
     plt.xlim(0,80)
@@ -350,13 +361,17 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
-    plt.plot(avgtruept,g1(avgpt,*Ropt)/avgtruept,'.')
+    '''
+    print 'Starting f1'
+    plt.plot(truepts,estpts/truepts,'.',avgtruept,g1(avgpt,*Ropt)/avgtruept,'go')
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$f^{-1}(<p_T^{reco}>)/p_T^{true}$')
     plt.xlim(0,80)
     plt.ylim(0.95,1.05)
     plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
+    print 'Ending f1'
+    '''
 
 
     sigma_calculation=array(sigmas)/dg(avgtruept,*Ropt)
