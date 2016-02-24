@@ -40,31 +40,31 @@ The optional files are:
 Plots are saved in the `plotDir` directory. The `-i` option sets the `identifier` keyword, which is a string that will end up in all plots made with this tool in order to identify the sample/jet collection being studied.
 
 #### Output Plots
-In NPV bins (indicated by `'_NPV##_'` string in the filename):
-`'resbin%d'%ptbin`: Distribution of reconstructed pT response binned in truth pT.
-`'fbin%d'%ptbin`: Distribution of reconstructed pT binned in truth pT.
-`'jetresponse_pttrue'`: Jet response curve.
-`'jetf_pttrue'`: Jet reconstructed pT curve.
-`'jetf1_pttrue'`: Estimated pT of average reconstructed pT. This is *not* the closure, but rather a test of how well the fitted response curve fits the average response data points. See the paper as to how this differs from the closure.
-`'jetsigma_pttrue'`: Estimated calibrated jet pT resolution vs. truth pT.
-`'jetsigmaR_pttrue'`: Estimated calibrated fractional jet pT recolusion vs. truth pT.
+In NPV bins (indicated by `'_NPV##_'` string in the filename):  
+`'resbin%d'%ptbin`: Distribution of reconstructed pT response binned in truth pT.  
+`'fbin%d'%ptbin`: Distribution of reconstructed pT binned in truth pT.  
+`'jetresponse_pttrue'`: Jet response curve.  
+`'jetf_pttrue'`: Jet reconstructed pT curve.  
+`'jetf1_pttrue'`: Estimated pT of average reconstructed pT. This is *not* the closure, but rather a test of how well the fitted response curve fits the average response data points. See the paper as to how this differs from the closure.  
+`'jetsigma_pttrue'`: Estimated calibrated jet pT resolution vs. truth pT.  
+`'jetsigmaR_pttrue'`: Estimated calibrated fractional jet pT recolusion vs. truth pT.  
 
-In truth pT bins (indicated by `'_pt##'` string in the filename):
-`'jetsigma_NPV'`: Estimated calibrated jet pT resolution vs. NPV.
-`'jetsigmaR_NPV'`: Estimated calibrated fractional jet pT recolusion vs. NPV.
+In truth pT bins (indicated by `'_pt##'` string in the filename):  
+`'jetsigma_NPV'`: Estimated calibrated jet pT resolution vs. NPV.  
+`'jetsigmaR_NPV'`: Estimated calibrated fractional jet pT recolusion vs. NPV.  
 
-Inclusive in NPV:
-`'jetsigma_pttrue'`: Estimated calibrated jet pT resolution vs. truth pT.
-`'jetsigmaR_pttrue'`: Estimated calibrated fractional jet pT recolusion vs. truth pT.
+Inclusive in NPV:  
+`'jetsigma_pttrue'`: Estimated calibrated jet pT resolution vs. truth pT.  
+`'jetsigmaR_pttrue'`: Estimated calibrated fractional jet pT recolusion vs. truth pT.  
 
 ### Data
 Some output data is stored in the `submitDir` directory, which allows reconstruction of some of the created plots. In particular this is useful for comparing multiple jet collections, as the tool does not yet support that functionality. The data are stored in the standard Python [pickle](https://docs.python.org/2/library/pickle.html) format.
 
-The stored data are:
-`'fit_'+options.identifier+'.p''`: The fit parameters to the response function. The curve is parameterized as a+b/log(x+10)+c/(log(x+10))^2, where x is the truth pT in GeV.
-`''pttruebins_'+options.identifier+'.p'`: The average truth pT in the truth pT bins. Basically, the x-axis of the data points in many of the above plots.
-`'sigmas_'+options.identifier+'.p''`: The estimated calibrated jet pT resolution, stored as a dictionary of arrays. The keys of the dictionary are the max NPV of the NPV bin, and the array is listed in order of increasing pT bin.
-`'sigmaRs_'+options.identifier+'.p''`: The estimated calibrated fractional jet pT resolution, stored as a dictionary of arrays. The keys of the dictionary are the max NPV of the NPV bin, and the array is listed in order of increasing pT bin.
+The stored data are:  
+`'fit_'+options.identifier+'.p''`: The fit parameters to the response function. The curve is parameterized as a+b/log(x+10)+c/(log(x+10))^2, where x is the truth pT in GeV.  
+`''pttruebins_'+options.identifier+'.p'`: The average truth pT in the truth pT bins. Basically, the x-axis of the data points in many of the above plots.  
+`'sigmas_'+options.identifier+'.p''`: The estimated calibrated jet pT resolution, stored as a dictionary of arrays. The keys of the dictionary are the max NPV of the NPV bin, and the array is listed in order of increasing pT bin.  
+`'sigmaRs_'+options.identifier+'.p''`: The estimated calibrated fractional jet pT resolution, stored as a dictionary of arrays. The keys of the dictionary are the max NPV of the NPV bin, and the array is listed in order of increasing pT bin.  
 
 ## Options
 Many of the options are described above, but all the options in the script are described below.
