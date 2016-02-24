@@ -430,6 +430,33 @@ def fitres(params=[]):
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.identifier+'.png')
   plt.close()
 
+  for i,ptbin in enumerate(ptedges):
+    if i==0: continue
+    plt.plot(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+    plt.xlabel('NPV')
+    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
+    lowlim = min(npv_sigmas[n][i-1] for n in npv_keys)
+    highlim = max(npv_sigmas[n][i-1] for n in npv_keys)
+    plt.ylim(lowlim-1,highlim+1)
+    plt.xlim(options.minnpv,options.maxnpv)
+    plt.legend(loc='upper left',frameon=False,numpoints=1)
+    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
+    plt.close()
+
+  for i,ptbin in enumerate(ptedges):
+    if i==0: continue
+    plt.plot(array(npv_keys)-0.5*options.npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+    plt.xlabel('NPV')
+    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
+    lowlim = 0 
+    highlim = max(npv_sigmaRs[n][i-1] for n in npv_keys)
+    plt.ylim(lowlim,highlim+0.1)
+    plt.xlim(options.minnpv,options.maxnpv)
+    plt.legend(loc='upper left',frameon=False,numpoints=1)
+    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
+    plt.close()
+
+
 
   return Ropts,npv_sigmas,npv_sigmaRs,avgtruept
 
