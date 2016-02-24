@@ -1,7 +1,7 @@
 # Resolution - A script to calculate jet resolutions
 
 This is a script to calculate the resolution of a reconstructed jet collection, taking into account the effects of the jet response function.
-The script does not actually go through the process of numerical inversion, but rather estimates the jet resolution as sigma(x)/f'(x), as outlined in `[https://cds.cern.ch/record/2045523/]`.
+The script does not actually go through the process of numerical inversion, but rather estimates the jet resolution as sigma(x)/f'(x), as outlined in `[https://cds.cern.ch/record/2045523/](https://cds.cern.ch/record/2045523/)`.
 The jets are broken down into bins of NPV and pT, so it's recommended to have statistics of at least 50000 jets in order to have reasonable error bars.
 
 ## Dependencies
