@@ -1,4 +1,4 @@
-from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray
+from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray,sign
 import os
 import numpy
 from numpy import save
@@ -33,6 +33,7 @@ parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, def
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
+parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
@@ -56,9 +57,9 @@ if options.cut==float('-inf'): do_all=True
 
 import pdb
 
-asym = 10 # shift distribution to the right to get better fit and deal with negative pTs
+asym = 10 # shift distribution to the right to get better fit and have R(0) be finite
 def R(x,a,b,c):
-    ax = array(x)
+    ax = abs(array(x))
     result = a + b/log(ax+asym) + c/log(ax+asym)**2
     return result 
 
@@ -68,8 +69,10 @@ def g(x,a,b,c):
 
 #derivative of g
 def dg(x,a,b,c):
-    ax = array(x)
-    result =  a + b/log(ax+asym) - b/log(ax+asym)**2*ax/(ax+asym) + c/log(ax+asym)**2 - 2*c/log(ax+asym)**3*ax/(ax+asym)
+    ax = abs(array(x))
+    #chain rule:
+    result = a + b/log(ax+asym) + c/log(ax+asym)**2
+    result = result + (- b/log(ax+asym)**2*ax/(ax+asym) - 2*c/log(ax+asym)**3*ax/(ax+asym))
     return result
 
 memoized = {} #memoize results to reduce computation time
@@ -77,14 +80,13 @@ def g1(x,a,b,c):
     ax = array(x)
     result = []
     for x in ax:
-      approx = round(x,1)
+      approx = (round(x,1),round(a,1),round(b,1),round(c,1))
       if approx not in memoized:
-        func = lambda y: approx-g(y,a,b,c)
-        memoized[approx] = fsolve(func,approx)
+        func = lambda y: approx[0]-g(y,a,b,c)
+        memoized[approx] = fsolve(func,approx)[0]
         #print approx,memoized[approx]
       result.append(memoized[approx])
-    return asarray(result)
-
+    return array(result)
 
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -352,26 +354,36 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
 
-    estpts = g1(recopts,*Ropt)
-    plt.plot(truepts,estpts,'.',avgtruept,g1(avgpt,*Ropt),'go')
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
-    plt.xlim(0,80)
-    plt.ylim(0,80)
-    plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
+    if options.doCal:
+      for ptbin in xrange(1,len(ptedges)): 
+        #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
+        resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+        ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+        trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+        weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+        muR,sigmaR,mu,sigma = numerical_inversion(ptdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin)
+        print muR,sigmaR,mu,sigma
 
-    '''
-    print 'Starting f1'
-    plt.plot(truepts,estpts/truepts,'.',avgtruept,g1(avgpt,*Ropt)/avgtruept,'go')
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$f^{-1}(<p_T^{reco}>)/p_T^{true}$')
-    plt.xlim(0,80)
-    plt.ylim(0.95,1.05)
-    plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-    print 'Ending f1'
-    '''
+      '''
+      estpts = g1(recopts,*Ropt)
+      plt.plot(truepts,estpts,'.',avgtruept,mean(estpts),'go')
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
+      plt.xlim(0,80)
+      plt.ylim(0,80)
+      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.close()
+
+      
+      plt.plot(truepts,estpts/truepts,'.',avgtruept,mean(estpts/truepts),'go')
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      plt.ylabel('$f^{-1}(<p_T^{reco}>)/p_T^{true}$')
+      plt.xlim(0,80)
+      plt.ylim(0.95,1.05)
+      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.close()
+      '''
+      
 
 
     sigma_calculation=array(sigmas)/dg(avgtruept,*Ropt)
@@ -459,6 +471,38 @@ def fitres(params=[]):
 
 
   return Ropts,npv_sigmas,npv_sigmaRs,avgtruept
+
+def numerical_inversion(ptdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin):
+  ptestdata = g1(ptdata,*Ropt)
+  resdata = ptestdata/trueptdata
+  muR = average(resdata,weights=weightdata)
+  sigmaR = sqrt(average((resdata-muR)**2,weights=weightdata))
+  n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
+  gfunc = norm
+  y = gfunc.pdf( bins, muR, sigmaR)
+  l = plt.plot(bins, y, 'r--', linewidth=2)
+  plt.xlabel('$p_T^{reco}/p_T^{true}$')
+  plt.ylabel('a.u.')
+  plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+  plt.close()
+  #avgres.append(mu)
+  #avgpt.append(average(ptdata,weights=weightdata))
+  #avgtruept.append(average(trueptdata,weights=weightdata))
+  #sigmaRs.append(sigma)
+
+  n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata)
+  # maximum likelihood estimates
+  mu = average(ptestdata,weights=weightdata)
+  sigma = sqrt(average((ptestdata-mu)**2,weights=weightdata))
+  gfunc = norm
+  y = gfunc.pdf( bins, mu, sigma)
+  l = plt.plot(bins, y, 'r--', linewidth=2)
+  plt.xlabel('$p_T^{reco}$')
+  plt.ylabel('a.u.')
+  plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+  plt.close()
+  
+  return muR,sigmaR,mu,sigma
 
 (fit,sigmas,sigmaRs,pttrue) = fitres()
 import pickle
