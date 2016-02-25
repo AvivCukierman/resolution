@@ -325,7 +325,7 @@ def fitres(params=[]):
     Ropt, Rcov = curve_fit(R, avgtruept, avgres)
     Ropts[npvedges[npvbin]] = Ropt 
 
-    plt.plot(truepts,responses,'.',avgtruept,avgres,'o',xp,R(xp,*Ropt),'r-')
+    plt.plot(truepts[npvbins==npvbin],responses[npvbins==npvbin],'.',avgtruept,avgres,'o',xp,R(xp,*Ropt),'r-')
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco}/p_T^{true}$')
     if do_all: plt.ylim(-0.5,2)
@@ -336,7 +336,7 @@ def fitres(params=[]):
 
     #g = R*t:
     print Ropt
-    plt.plot(truepts,recopts,'.',avgtruept,avgpt,'o',xp,R(xp,*Ropt)*array(xp),'r-')
+    plt.plot(truepts[npvbins==npvbin],recopts[npvbins==npvbin],'.',avgtruept,avgpt,'o',xp,R(xp,*Ropt)*array(xp),'r-')
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco}$ [GeV]')
     if do_all: plt.ylim(-10,80)
@@ -355,38 +355,41 @@ def fitres(params=[]):
     plt.close()
 
     if options.doCal:
+      calmus = []
+      calmuRs = []
+      calsigmas = []
+      calsigmaRs = []
       for ptbin in xrange(1,len(ptedges)): 
-        #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
-        resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        muR,sigmaR,mu,sigma = numerical_inversion(ptdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin)
-        print muR,sigmaR,mu,sigma
+        ptestdata = g1(ptdata,*Ropt)
+        muR,sigmaR,mu,sigma = numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin)
+        calmuRs.append(muR)
+        calsigmaRs.append(sigmaR)
+        calmus.append(mu)
+        calsigmas.append(sigma)
 
-      '''
       estpts = g1(recopts,*Ropt)
-      plt.plot(truepts,estpts,'.',avgtruept,mean(estpts),'go')
+      plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.',avgtruept,calmus,'go')
       plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$f^{-1}(<p_T^{reco}>)$ [GeV]')
+      plt.ylabel('$p_T^{reco,cal}$ [GeV]')
       plt.xlim(0,80)
       plt.ylim(0,80)
       plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
-
       
-      plt.plot(truepts,estpts/truepts,'.',avgtruept,mean(estpts/truepts),'go')
+      closure = estpts/truepts
+      plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.',avgtruept,calmuRs,'go')
       plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$f^{-1}(<p_T^{reco}>)/p_T^{true}$')
+      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,80)
       plt.ylim(0.95,1.05)
       plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
-      '''
-      
-
 
     sigma_calculation=array(sigmas)/dg(avgtruept,*Ropt)
+    print sigma_calculation
     npv_sigmas[npvedges[npvbin]] = sigma_calculation
     plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
@@ -472,8 +475,7 @@ def fitres(params=[]):
 
   return Ropts,npv_sigmas,npv_sigmaRs,avgtruept
 
-def numerical_inversion(ptdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin):
-  ptestdata = g1(ptdata,*Ropt)
+def numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin):
   resdata = ptestdata/trueptdata
   muR = average(resdata,weights=weightdata)
   sigmaR = sqrt(average((resdata-muR)**2,weights=weightdata))
