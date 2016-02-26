@@ -384,12 +384,21 @@ def fitres(params=[]):
       plt.xlabel('$p_T^{true}$ [GeV]')
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,80)
-      plt.ylim(0.95,1.05)
+      plt.ylim(0,2)
       plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
 
-    sigma_calculation=array(sigmas)/dg(avgtruept,*Ropt)
-    print sigma_calculation
+      plt.plot(avgtruept,calmuRs,'go')
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+      plt.xlim(0,80)
+      plt.ylim(.95,1.05)
+      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.close()
+
+
+    if options.doCal: sigma_calculation = calsigmas
+    else: sigma_calculation = array(sigmas)/dg(avgtruept,*Ropt)
     npv_sigmas[npvedges[npvbin]] = sigma_calculation
     plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
@@ -400,7 +409,8 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
     
-    sigma_calculation=array(sigmaRs)/dg(avgtruept,*Ropt)
+    if options.doCal: sigma_calculation = calsigmaRs 
+    else: sigma_calculation = sigma_calculation=array(sigmaRs)/dg(avgtruept,*Ropt)
     npv_sigmaRs[npvedges[npvbin]] = sigma_calculation
     plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
