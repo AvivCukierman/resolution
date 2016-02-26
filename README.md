@@ -1,7 +1,7 @@
 # Resolution - A script to calculate jet resolutions
 
 This is a script to calculate the resolution of a reconstructed jet collection, taking into account the effects of the jet response function.
-The script does not actually go through the process of numerical inversion, but rather estimates the jet resolution as sigma(x)/f'(x), as outlined in [https://cds.cern.ch/record/2045523/](https://cds.cern.ch/record/2045523/).
+The script gives you an option to actually go through the process of numerical inversion or to estimate the jet resolution as sigma(x)/f'(x), as outlined in [https://cds.cern.ch/record/2045523/](https://cds.cern.ch/record/2045523/).
 The jets are broken down into bins of NPV and pT, so it's recommended to have statistics of at least 50000 jets in order to have reasonable error bars.
 
 ## Dependencies
@@ -34,6 +34,13 @@ The optional files are:
 `'mindrs_'+identifier+'.npy'` (the minimum dR from the truth jet to any other truth jet - for most studies, it's recommend to examine only isolated truth jets)  
 `'weights_'+identifier+'.npy'` (the weight of the event that the jet is in - should be the same length as the above two arrays)  
 
+## Analysis Configuration
+If the `-n` flag is set in the analysis, then the full calibration is run. If the flag is not set, then estimates for the calibrated resolution of the jets are used.
+
+The calibration is done via the process of numerical inversion, through applying f^-1(x) to reconstructed jets rather than the numerical inversion process described in [https://cds.cern.ch/record/1201006](https://cds.cern.ch/record/1201006). These methods are shown to be mathematically equivalent in the note mentioned in the introduction. However both methods suffer from the problem of extrapolating f(x) to unseen values. This script assumes the response R(x) is even and positive, so that f(x)=R(x)*x is odd and passes through 0.
+
+N.B. Doing the full numerical inversion with the `-n` option takes about twice as long as using the estimate. The calculation of f^-1(x) is significantly sped up by rounding x to the nearest .1 and utilizing memoization.
+
 ## Output
 
 ### Plots
@@ -45,7 +52,11 @@ In NPV bins (indicated by `'_NPV##_'` string in the filename):
 `'fbin%d'%ptbin`: Distribution of reconstructed pT binned in truth pT.  
 `'jetresponse_pttrue'`: Jet response curve.  
 `'jetf_pttrue'`: Jet reconstructed pT curve.  
-`'jetf1_pttrue'`: Estimated pT of average reconstructed pT. This is *not* the closure, but rather a test of how well the fitted response curve fits the average response data points. See the paper as to how this differs from the closure.  
+`'closurebin%d'%ptbin`: Distribution of calibrated reconstructed pT response binned in truth pT. Only made if `-n` option is set.  
+`'f1bin%d'%ptbin`: Distribution of calibrated reconstructed pT binned in truth pT. Only made if `-n` option is set.  
+`'jetf1_pttrue'`: Calibrated reconstructed pT. Only made if `-n` option is set.
+`'jetclosure_pttrue'`: Calibrated reconstructed pT, divided by truth pT. Only made if `-n` option is set.  
+`'jetclosure_pttrue_zoom'`: Calibrated reconstructed pT, divided by truth pT. Zoomed to small range around 1. Only made if `-n` option is set.  
 `'jetsigma_pttrue'`: Estimated calibrated jet pT resolution vs. truth pT.  
 `'jetsigmaR_pttrue'`: Estimated calibrated fractional jet pT recolusion vs. truth pT.  
 
@@ -95,12 +106,14 @@ Option | Description
 ### Analysis Configuration
 Options | Description
 --- | ---
+`-n`,`doCal` | Do full numerical inversion. If not applied, uses estimate for resolution.
 `minnpv` | Minimum NPV to analyze.
 `maxnpv` | Maximum NPV to analyze.
 `npvbin` | Size of NPV bins.
 `minpt` | Minimum truth pT to analyze.
 `maxpt` | Maximum truth pT to analyze.
 `ptbin` | Size of pT bins.
-Note: Even if you're only considering jets with low pT, it's recommended to make the `maxpt` value considerably higher than the analysis regime, so that f'(x) can be measured properly. In particular, if you only analyze one pT bin then the analysis will fail, because no fit can be made to the response function.
+
+N. B. 3: Even if you're only considering jets with low pT, it's recommended to make the `maxpt` value considerably higher than the analysis regime, so that f'(x) can be measured properly. In particular, if you only analyze one pT bin then the analysis will fail, because no fit can be made to the response function.
 
 
