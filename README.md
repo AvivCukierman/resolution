@@ -114,6 +114,6 @@ Options | Description
 `maxpt` | Maximum truth pT to analyze.
 `ptbin` | Size of pT bins.
 
-N. B. 3: Even if you're only considering jets with low pT, it's recommended to make the `maxpt` value considerably higher than the analysis regime, so that f'(x) can be measured properly. In particular, if you only analyze one pT bin then the analysis will fail, because no fit can be made to the response function.
+N. B. Even if you're only considering jets with low pT, it's recommended to make the `maxpt` value considerably higher than the analysis regime, so that f'(x) can be measured properly. In particular, if you only analyze one pT bin then the analysis will fail, because no fit can be made to the response function.
 
 
