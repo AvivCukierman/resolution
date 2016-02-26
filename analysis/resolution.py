@@ -272,16 +272,22 @@ def fitres(params=[]):
   npvbins = digitize(npvs,npvedges)
 
   npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  npv_sigma_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
-    avgres = []
-    avgpt = []
     avgtruept = []
-    sigmas = []
+    avgres = []
+    avgres_errs = []
     sigmaRs = []
+    sigmaR_errs = []
+    avgpt = []
+    avgpt_errs = []
+    sigmas = []
+    sigma_errs = []
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
@@ -289,10 +295,17 @@ def fitres(params=[]):
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      weightdata = weightdata/sum(weightdata)
+      avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       # maximum likelihood estimates
       mu = average(resdata,weights=weightdata)
-      sigma = sqrt(average((resdata-mu)**2,weights=weightdata))
+      var = average((resdata-mu)**2,weights=weightdata)
+      sigma = sqrt(var)
+      mu_err = sigma*sqrt(sum(weightdata**2))
+      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+      sigma_err = 0.5*var_err/sigma
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
@@ -302,14 +315,20 @@ def fitres(params=[]):
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
       avgres.append(mu)
-      avgpt.append(average(ptdata,weights=weightdata))
-      avgtruept.append(average(trueptdata,weights=weightdata))
+      avgres_errs.append(mu_err)
       sigmaRs.append(sigma)
+      sigmaR_errs.append(sigma_err)
 
       n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
       # maximum likelihood estimates
       mu = average(ptdata,weights=weightdata)
-      sigma = sqrt(average((ptdata-mu)**2,weights=weightdata))
+      var = average((ptdata-mu)**2,weights=weightdata)
+      sigma = sqrt(var)
+      mu_err = sigma*sqrt(sum(weightdata**2))
+      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+      sigma_err = 0.5*var_err/sigma
+      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
       l = plt.plot(bins, y, 'r--', linewidth=2)
@@ -317,7 +336,10 @@ def fitres(params=[]):
       plt.ylabel('a.u.')
       plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
+      avgpt.append(mu)
       sigmas.append(sigma)
+      avgpt_errs.append(mu_err)
+      sigma_errs.append(sigma_err)
 
     xp = linspace(5,150,75)
 
@@ -325,7 +347,8 @@ def fitres(params=[]):
     Ropt, Rcov = curve_fit(R, avgtruept, avgres)
     Ropts[npvedges[npvbin]] = Ropt 
 
-    plt.plot(truepts[npvbins==npvbin],responses[npvbins==npvbin],'.',avgtruept,avgres,'o',xp,R(xp,*Ropt),'r-')
+    plt.plot(truepts[npvbins==npvbin],responses[npvbins==npvbin],'.',xp,R(xp,*Ropt),'r-')
+    plt.errorbar(avgtruept,avgres,color='g',marker='o',linestyle='',yerr=avgres_errs)
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco}/p_T^{true}$')
     if do_all: plt.ylim(-0.5,2)
@@ -336,7 +359,8 @@ def fitres(params=[]):
 
     #g = R*t:
     print Ropt
-    plt.plot(truepts[npvbins==npvbin],recopts[npvbins==npvbin],'.',avgtruept,avgpt,'o',xp,R(xp,*Ropt)*array(xp),'r-')
+    plt.plot(truepts[npvbins==npvbin],recopts[npvbins==npvbin],'.',xp,R(xp,*Ropt)*array(xp),'r-')
+    plt.errorbar(avgtruept,avgpt,color='g',marker='o',linestyle='',yerr=avgpt_errs)
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco}$ [GeV]')
     if do_all: plt.ylim(-10,80)
@@ -355,23 +379,32 @@ def fitres(params=[]):
     plt.close()
 
     if options.doCal:
-      calmus = []
       calmuRs = []
-      calsigmas = []
+      calmuR_errs = []
       calsigmaRs = []
+      calsigmaR_errs = []
+      calmus = []
+      calmu_errs = []
+      calsigmas = []
+      calsigma_errs = []
       for ptbin in xrange(1,len(ptedges)): 
         ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         ptestdata = g1(ptdata,*Ropt)
-        muR,sigmaR,mu,sigma = numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin)
+        muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err = numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin)
         calmuRs.append(muR)
+        calmuR_errs.append(muR_err)
         calsigmaRs.append(sigmaR)
+        calsigmaR_errs.append(sigmaR_err)
         calmus.append(mu)
+        calmu_errs.append(mu_err)
         calsigmas.append(sigma)
+        calsigma_errs.append(sigma_err)
 
-      estpts = g1(recopts,*Ropt)
-      plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.',avgtruept,calmus,'go')
+      estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
+      plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
+      plt.errorbar(avgtruept,calmus,color='g',marker='o',linestyle='',yerr=calmu_errs)
       plt.xlabel('$p_T^{true}$ [GeV]')
       plt.ylabel('$p_T^{reco,cal}$ [GeV]')
       plt.xlim(0,80)
@@ -380,7 +413,8 @@ def fitres(params=[]):
       plt.close()
       
       closure = estpts/truepts
-      plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.',avgtruept,calmuRs,'go')
+      plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.')
+      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
       plt.xlabel('$p_T^{true}$ [GeV]')
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,80)
@@ -388,7 +422,7 @@ def fitres(params=[]):
       plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
       plt.close()
 
-      plt.plot(avgtruept,calmuRs,'go')
+      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
       plt.xlabel('$p_T^{true}$ [GeV]')
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,80)
@@ -397,10 +431,15 @@ def fitres(params=[]):
       plt.close()
 
 
-    if options.doCal: sigma_calculation = calsigmas
-    else: sigma_calculation = array(sigmas)/dg(avgtruept,*Ropt)
+    if options.doCal:
+      sigma_calculation = calsigmas
+      sigma_err_calculation = calsigma_errs
+    else:
+      sigma_calculation = array(sigmas)/dg(avgtruept,*Ropt)
+      sigma_err_calculation = array(sigma_errs)/dg(avgtruept,*Ropt)
     npv_sigmas[npvedges[npvbin]] = sigma_calculation
-    plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
+    npv_sigma_errs[npvedges[npvbin]] = sigma_err_calculation
+    plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
     plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
@@ -409,10 +448,15 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
     plt.close()
     
-    if options.doCal: sigma_calculation = calsigmaRs 
-    else: sigma_calculation = sigma_calculation=array(sigmaRs)/dg(avgtruept,*Ropt)
+    if options.doCal:
+      sigma_calculation = calsigmaRs 
+      sigma_err_calculation = calsigmaR_errs
+    else:
+      sigma_calculation = array(sigmaRs)/dg(avgtruept,*Ropt)
+      sigma_err_calculation = array(sigmaR_errs)/dg(avgtruept,*Ropt) 
     npv_sigmaRs[npvedges[npvbin]] = sigma_calculation
-    plt.plot(avgtruept,sigma_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
+    npv_sigmaR_errs[npvedges[npvbin]] = sigma_err_calculation
+    plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
     plt.ylim(0,max(sigma_calculation)+0.1) 
@@ -433,7 +477,7 @@ def fitres(params=[]):
   npv_keys = npv_sigmas.keys() 
   npv_keys.sort()
   for i,npv in enumerate(npv_keys):
-    plt.plot(avgtruept,npv_sigmas[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
+    plt.errorbar(avgtruept,npv_sigmas[npv],yerr=npv_sigma_errs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
   plt.xlabel('$p_T^{true}$ [GeV]')
   plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
   lowlim = min([min(s) for s in npv_sigmas.values()])
@@ -445,7 +489,7 @@ def fitres(params=[]):
   plt.close()
 
   for i,npv in enumerate(npv_keys):
-    plt.plot(avgtruept,npv_sigmaRs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
+    plt.errorbar(avgtruept,npv_sigmaRs[npv],yerr=npv_sigmaR_errs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
   plt.xlabel('$p_T^{true}$ [GeV]')
   plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
   highlim = max([max(s) for s in npv_sigmaRs.values()])
@@ -457,7 +501,7 @@ def fitres(params=[]):
 
   for i,ptbin in enumerate(ptedges):
     if i==0: continue
-    plt.plot(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+    plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],yerr=[npv_sigma_errs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
     plt.xlabel('NPV')
     plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
     lowlim = min(npv_sigmas[n][i-1] for n in npv_keys)
@@ -470,7 +514,7 @@ def fitres(params=[]):
 
   for i,ptbin in enumerate(ptedges):
     if i==0: continue
-    plt.plot(array(npv_keys)-0.5*options.npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+    plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],yerr=[npv_sigmaR_errs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
     plt.xlabel('NPV')
     plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
     lowlim = 0 
@@ -483,12 +527,18 @@ def fitres(params=[]):
 
 
 
-  return Ropts,npv_sigmas,npv_sigmaRs,avgtruept
+  return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept
 
-def numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvbin):
+def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
+  weightdata = weightdata/sum(weightdata)
   resdata = ptestdata/trueptdata
   muR = average(resdata,weights=weightdata)
-  sigmaR = sqrt(average((resdata-muR)**2,weights=weightdata))
+  varR = average((resdata-muR)**2,weights=weightdata)
+  sigmaR = sqrt(varR)
+  muR_err = sigmaR*sqrt(sum(weightdata**2))
+  varR_err = varR*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+  sigmaR_err = 0.5*varR_err/sigmaR
   n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
   gfunc = norm
   y = gfunc.pdf( bins, muR, sigmaR)
@@ -505,7 +555,12 @@ def numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvb
   n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata)
   # maximum likelihood estimates
   mu = average(ptestdata,weights=weightdata)
-  sigma = sqrt(average((ptestdata-mu)**2,weights=weightdata))
+  var = average((ptestdata-mu)**2,weights=weightdata)
+  sigma = sqrt(var)
+  mu_err = sigma*sqrt(sum(weightdata**2))
+  var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+  sigma_err = 0.5*var_err/sigma
   gfunc = norm
   y = gfunc.pdf( bins, mu, sigma)
   l = plt.plot(bins, y, 'r--', linewidth=2)
@@ -514,11 +569,13 @@ def numerical_inversion(ptestdata,trueptdata,weightdata,Ropt,ptbin,npvedges,npvb
   plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
   plt.close()
   
-  return muR,sigmaR,mu,sigma
+  return muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err
 
-(fit,sigmas,sigmaRs,pttrue) = fitres()
+(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue) = fitres()
 import pickle
 pickle.dump(fit,open(options.submitDir+'/fit_'+options.identifier+'.p','wb'))
 pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.identifier+'.p','wb'))
+pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.identifier+'.p','wb'))
 pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.identifier+'.p','wb'))
+pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.identifier+'.p','wb'))
 pickle.dump(pttrue,open(options.submitDir+'/pttruebins_'+options.identifier+'.p','wb'))
