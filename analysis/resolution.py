@@ -306,7 +306,7 @@ def fitres(params=[]):
       var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
       #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
       sigma_err = 0.5*var_err/sigma
-      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
+      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
       l = plt.plot(bins, y, 'r--', linewidth=2)
@@ -328,7 +328,7 @@ def fitres(params=[]):
       var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
       #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
       sigma_err = 0.5*var_err/sigma
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
+      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,facecolor='b')
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
       l = plt.plot(bins, y, 'r--', linewidth=2)
@@ -539,7 +539,7 @@ def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
   varR_err = varR*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
   #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
   sigmaR_err = 0.5*varR_err/sigmaR
-  n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata)
+  n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
   gfunc = norm
   y = gfunc.pdf( bins, muR, sigmaR)
   l = plt.plot(bins, y, 'r--', linewidth=2)
@@ -552,7 +552,7 @@ def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
   #avgtruept.append(average(trueptdata,weights=weightdata))
   #sigmaRs.append(sigma)
 
-  n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata)
+  n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
   # maximum likelihood estimates
   mu = average(ptestdata,weights=weightdata)
   var = average((ptestdata-mu)**2,weights=weightdata)
