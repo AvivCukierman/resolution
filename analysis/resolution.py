@@ -8,6 +8,14 @@ from operator import sub
 from optparse import OptionParser
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
+try:
+  from rootpy.plotting.style import set_style, get_style
+  print '== Using ATLAS style =='
+  atlas = get_style('ATLAS')
+  atlas.SetPalette(51)
+  set_style(atlas)
+except ImportError: print '== Not using ATLAS style (Can\'t import rootpy.) =='
+
 parser = OptionParser()
 
 # job configuration
