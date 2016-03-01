@@ -7,7 +7,7 @@ The jets are broken down into bins of NPV and pT, so it's recommended to have st
 The main python script is `resolution.py`, and a sample run script is given in `run_jz2_j0.sh`. The script does not compare different jet collections; it only calculates the resolution of a particular jet collection in NPV and pT bins. This is because the process of comparing different jet collections will probably vary a lot depending on the analysis being done. A sample python and accompanying shell script to compare different jet collections can be found in `comare_resolution.py` and `compare_sigmas_EM.sh`, with `output/EM_collections.json` giving some plotting parameters for the comparison script.
 
 ## Dependencies
-Should work with Python 2.7.2 and above. Uses numpy and PyRoot.
+Should work with Python 2.7.2 and above. Uses numpy, PyRoot, and SciPy. If RootPy is installed, plots are made with ATLAS style, but it's not necessary for running the script.
 
 ## Input
 The input to the script can either be a Root Ntuple or numpy arrays.
