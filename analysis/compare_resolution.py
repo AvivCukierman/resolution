@@ -4,14 +4,18 @@ from pprint import pprint
 from numpy import array
 from optparse import OptionParser
 import matplotlib.pyplot as plt 
+from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
+atlas_style = False
 try:
   from rootpy.plotting.style import set_style, get_style
   print 'ATLAS style!'
   atlas = get_style('ATLAS')
   atlas.SetPalette(51)
   set_style(atlas)
+  set_style('ATLAS',mpl=True)
+  atlas_style=True
 except ImportError: print 'Not using ATLAS style (Can\'t import rootpy. Try setting up a virtual environment.)'
 
 parser = OptionParser()
@@ -22,12 +26,12 @@ parser.add_option("--plotDir", help="Directory containing plots",type=str, defau
 parser.add_option("--collections", help="file containing jet collection identifiers and labels",type=str, default="collections")
 
 # analysis configuration
-parser.add_option("--minnpv", help="min NPV", type=int, default=5)
+'''parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
 parser.add_option("--minpt", help="min truth pt", type=int, default=20)
 parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
-parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
+parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)'''
 
 (options, args) = parser.parse_args()
 
@@ -45,9 +49,8 @@ def readCollections():
 import pickle
 def plot_sigmas():
   collections_list = readCollections()
-  maxpt = options.maxpt
-  if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
-  ptedges = range(options.minpt,maxpt,options.ptbin)
+  identifier = collections_list[0]['identifier']
+  ptedges = pickle.load(open(options.submitDir+'/'+'ptedges_'+identifier+'.p','rb')) #assumes all the collections have the same ptedges
   for i,ptbin in enumerate(ptedges):
     if i==0: continue
 
@@ -60,20 +63,38 @@ def plot_sigmas():
 
       npv_keys = npv_sigmas.keys() 
       npv_keys.sort()
+      npvbin = npv_keys[1]-npv_keys[0]
 
-      plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],yerr=[npv_sigma_errs[n][i-1] for n in npv_keys],color=c['color'],linestyle=c['ls'],label=c['label'])
+      plt.errorbar(array(npv_keys)-0.5*npvbin,[npv_sigmas[n][i-1] for n in npv_keys],yerr=[npv_sigma_errs[n][i-1] for n in npv_keys],color=c['color'],linestyle=c['ls'],label=c['label'])
       lowlim = min(lowlim,min(npv_sigmas[n][i-1] for n in npv_keys))
       highlim = max(highlim,max(npv_sigmas[n][i-1] for n in npv_keys))
-    plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
-    plt.xlabel('NPV')
-    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-    plt.ylim(lowlim-1,highlim+1)
-    plt.xlim(options.minnpv,options.maxnpv)
-    plt.legend(loc='upper left',frameon=False,numpoints=1)
+    #ATLAS style
+    axes = plt.axes()
+    if atlas_style:
+      axes.xaxis.set_minor_locator(AutoMinorLocator())
+      axes.yaxis.set_minor_locator(AutoMinorLocator())
+      plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
+      plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]', position=(0., 1.), va='top', ha='right')
+      axes.xaxis.set_label_coords(1., -0.15)
+      axes.yaxis.set_label_coords(-0.17, 1.)
+      axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+      axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+      axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+    else:
+      plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+      plt.xlabel('NPV')
+      plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
+    plt.ylim(lowlim-0.5,highlim+2)
+    plt.xlim(min(npv_keys)-npvbin,max(npv_keys))
+    # legend without errors: 
+    handles, labels = axes.get_legend_handles_labels()
+    handles = [h[0] for h in handles]
+    plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.png')
     plt.close()
 
     highlim = float('-inf')
+    lowlim = float('inf') 
     for c in collections_list:
       identifier = c['identifier']
       npv_sigmaRs = pickle.load(open(options.submitDir+'/'+'sigmaRs_'+identifier+'.p','rb'))
@@ -81,16 +102,33 @@ def plot_sigmas():
 
       npv_keys = npv_sigmas.keys() 
       npv_keys.sort()
+      npvbin = npv_keys[1]-npv_keys[0]
 
-      plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],yerr=[npv_sigmaR_errs[n][i-1] for n in npv_keys],color=c['color'],linestyle=c['ls'],label=c['label'])
+      plt.errorbar(array(npv_keys)-0.5*npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],yerr=[npv_sigmaR_errs[n][i-1] for n in npv_keys],color=c['color'],linestyle=c['ls'],label=c['label'])
       highlim = max(max(npv_sigmaRs[n][i-1] for n in npv_keys),highlim)
-    plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
-    plt.xlabel('NPV')
-    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-    lowlim = 0 
-    plt.ylim(lowlim,highlim+0.1)
-    plt.xlim(options.minnpv,options.maxnpv)
-    plt.legend(loc='upper left',frameon=False,numpoints=1)
+      lowlim = min(min(npv_sigmaRs[n][i-1] for n in npv_keys),lowlim)
+    #ATLAS style
+    axes = plt.axes()
+    if atlas_style:
+      axes.xaxis.set_minor_locator(AutoMinorLocator())
+      axes.yaxis.set_minor_locator(AutoMinorLocator())
+      plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
+      plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
+      axes.xaxis.set_label_coords(1., -0.15)
+      axes.yaxis.set_label_coords(-0.17, 1.)
+      axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+      axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+      axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+    else:
+      plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+      plt.xlabel('NPV')
+      plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
+    plt.ylim(lowlim-0.05,highlim+0.1)
+    plt.xlim(min(npv_keys)-npvbin,max(npv_keys))
+    # legend without errors: 
+    handles, labels = axes.get_legend_handles_labels()
+    handles = [h[0] for h in handles]
+    plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.png')
     plt.close()
 
