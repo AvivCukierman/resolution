@@ -536,7 +536,7 @@ def fitres(params=[]):
 
 
 
-  return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept
+  return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
 def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
   weightdata = weightdata/sum(weightdata)
@@ -580,11 +580,12 @@ def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
   
   return muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err
 
-(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue) = fitres()
+(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue,ptedges) = fitres()
 import pickle
 pickle.dump(fit,open(options.submitDir+'/fit_'+options.identifier+'.p','wb'))
 pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.identifier+'.p','wb'))
 pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.identifier+'.p','wb'))
 pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.identifier+'.p','wb'))
 pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.identifier+'.p','wb'))
-pickle.dump(pttrue,open(options.submitDir+'/pttruebins_'+options.identifier+'.p','wb'))
+pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.identifier+'.p','wb'))
+pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.identifier+'.p','wb'))
