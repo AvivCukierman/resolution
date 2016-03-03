@@ -25,14 +25,6 @@ parser.add_option("--submitDir", help="Directory containing output files",type=s
 parser.add_option("--plotDir", help="Directory containing plots",type=str, default="../plots")
 parser.add_option("--collections", help="file containing jet collection identifiers and labels",type=str, default="collections")
 
-# analysis configuration
-'''parser.add_option("--minnpv", help="min NPV", type=int, default=5)
-parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
-parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
-parser.add_option("--minpt", help="min truth pt", type=int, default=20)
-parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
-parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)'''
-
 (options, args) = parser.parse_args()
 
 if not os.path.exists(options.submitDir): raise OSError(options.submitDir+' does not exist. This is where the input pickle files go.')
@@ -76,7 +68,7 @@ def plot_sigmas():
       plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
       plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]', position=(0., 1.), va='top', ha='right')
       axes.xaxis.set_label_coords(1., -0.15)
-      axes.yaxis.set_label_coords(-0.17, 1.)
+      axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
       axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
       axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
@@ -115,7 +107,7 @@ def plot_sigmas():
       plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
       plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
       axes.xaxis.set_label_coords(1., -0.15)
-      axes.yaxis.set_label_coords(-0.17, 1.)
+      axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
       axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
       axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
