@@ -1,0 +1,33 @@
+{
+  "collections":[{
+      "identifier":"j0_jz2_EM",
+      "label":"Anti-kT4 EM Jets ($\\rho$-Area Subtracted)",
+      "color":"b",
+      "ls":"-"
+    },
+    {
+      "identifier":"jnoarea0_jz2_EM",
+      "label":"Anti-kT4 EM Jets (Unsubtracted)",
+      "color":"b",
+      "ls":"--"
+    },
+    {
+      "identifier":"jvoro0_jz2_EM",
+      "label":"Voronoi (EM, Negative Suppression)",
+      "color":"r",
+      "ls":"-"
+    },
+    {
+      "identifier":"jvoro1_jz2_EM",
+      "label":"Voronoi (EM, 1-Sigma Suppression)",
+      "color":"r",
+      "ls":"--"
+    },
+    {
+      "identifier":"jvoros_jz2_EM",
+      "label":"Voronoi (EM, Spreading)",
+      "color":"g",
+      "ls":"-"
+    }
+  ]
+}
