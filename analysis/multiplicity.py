@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
 from operator import sub
 from optparse import OptionParser
+import pickle
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
 try:
@@ -34,17 +35,9 @@ parser.add_option("--npv", help="NPV branch name",type=str, default="NPV")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
 
 # jet configuration
-parser.add_option("-c","--cut", default=float('-inf'), type=float, help="low pT cut on reco jets")
+parser.add_option("-c","--cut", default=20, type=float, help="low pT cut on (calibrated) reco jets")
 parser.add_option("--mineta", help="min abs(eta) on reco jets", type=float, default=0)
 parser.add_option("--maxeta", help="max abs(eta) on reco jets", type=float, default=float('inf'))
-
-# analysis configuration
-parser.add_option("--minnpv", help="min NPV", type=int, default=5)
-parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
-parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
-parser.add_option("--minpt", help="min truth pt", type=int, default=20)
-parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
-parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
 
 (options, args) = parser.parse_args()
 
@@ -223,15 +216,18 @@ def calibrate():
       eta_cuts = [True]*len(recopts) 
 
   
-  import pickle
   fits = pickle.load(open(options.submitDir+'/'+'fit_'+options.identifier+'.p','rb'))
   npvedges = fits.keys()
+  avg_mults = {n:0 for n in npvedges} 
+  err_mults = {n:0 for n in npvedges} 
   npvedges.sort()
   npvbinsize = npvedges[1]-npvedges[0]
   npvedges.insert(0,npvedges[0]-npvbinsize)
   npvbins = digitize(npvs,npvedges)
 
+
   for npvbin in xrange(1,len(npvedges)):
+    print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
     ptdata = recopts[npvbins==npvbin]
     npvdata = npvs[npvbins==npvbin]
     weightdata = weights[npvbins==npvbin]
@@ -249,331 +245,34 @@ def calibrate():
       event_weight = weightdata[event_numberdata==event]
       if len(set(event_weight))>1: raise RuntimeError('Not all the event weights for a single event are the same.')
       event_weight = event_weight[0]
-      event_multiplicity = len(event_calib_jets[event_calib_jets>20])
+      event_multiplicity = len(event_calib_jets[event_calib_jets>options.cut])
       event_multiplicities.append(event_multiplicity)
       event_weights.append(event_weight)
-    pdb.set_trace()
+
+    n,bins,patches = plt.hist(event_multiplicities,normed=True,bins=max(event_multiplicities)-min(event_multiplicities),weights=event_weights,facecolor='b')
+    plt.xlabel('Jet Multiplicity ($p_T >$ '+str(options.cut)+' GeV)')
+    plt.ylabel('Fraction of Events')
+    plt.savefig(options.plotDir+'/'+'jetmultiplicity'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.close()
+
+    event_weights = event_weights/sum(event_weights)
+    avg_mult = average(event_multiplicities,weights=event_weights)
+    std_mult = sqrt(average((event_multiplicities-avg_mult)**2,weights=event_weights))
+    err_mult = std_mult*sqrt(sum(event_weights**2))
+    avg_mults[npvedges[npvbin]] = avg_mult
+    err_mults[npvedges[npvbin]] = err_mult
+
+  xs = [npvedges[npvbin]-0.5*npvbinsize for npvbin in xrange(1,len(npvedges))]
+  ys = [avg_mults[npvedges[npvbin]] for npvbin in xrange(1,len(npvedges))]
+  errs = [err_mults[npvedges[npvbin]] for npvbin in xrange(1,len(npvedges))]
+  plt.errorbar(xs,ys,yerr=errs)
+  plt.ylabel('Average Jet Multiplicity ($p_T >$ '+str(options.cut)+' GeV)')
+  plt.xlabel('NPV')
+  plt.xlim(min(npvedges),max(npvedges))
+  plt.savefig(options.plotDir+'/'+'jetmultiplicity'+'_'+options.identifier+'.png')
+
+  return avg_mults,err_mults
       
-
-
-
-def plot():
-  maxpt = options.maxpt
-  if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
-  ptedges = range(options.minpt,maxpt,options.ptbin)
-  cuts = all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts],axis=0)
-
-  recopts = recopts[cuts]
-  truepts = truepts[cuts]
-  responses = recopts/truepts
-  npvs = npvs[cuts]
-  weights = weights[cuts]
-
-  ptbins = digitize(truepts,ptedges)
-
-  maxnpv = options.maxnpv
-  if (options.maxnpv-options.minnpv)%options.npvbin==0: maxnpv+=1
-  npvedges = range(options.minnpv,maxnpv,options.npvbin)
-  npvbins = digitize(npvs,npvedges)
-
-  npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  npv_sigma_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-
-  for npvbin in xrange(1,len(npvedges)):
-    print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
-    avgtruept = []
-    avgres = []
-    avgres_errs = []
-    sigmaRs = []
-    sigmaR_errs = []
-    avgpt = []
-    avgpt_errs = []
-    sigmas = []
-    sigma_errs = []
-
-    for ptbin in xrange(1,len(ptedges)): 
-      #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
-      resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      weightdata = weightdata/sum(weightdata)
-      avgtruept.append(average(trueptdata,weights=weightdata))
-      if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
-      # maximum likelihood estimates
-      mu = average(resdata,weights=weightdata)
-      var = average((resdata-mu)**2,weights=weightdata)
-      sigma = sqrt(var)
-      mu_err = sigma*sqrt(sum(weightdata**2))
-      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-      sigma_err = 0.5*var_err/sigma
-      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      gfunc = norm
-      y = gfunc.pdf( bins, mu, sigma)
-      l = plt.plot(bins, y, 'r--', linewidth=2)
-      plt.xlabel('$p_T^{reco}/p_T^{true}$')
-      plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-      plt.close()
-      avgres.append(mu)
-      avgres_errs.append(mu_err)
-      sigmaRs.append(sigma)
-      sigmaR_errs.append(sigma_err)
-
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
-      # maximum likelihood estimates
-      mu = average(ptdata,weights=weightdata)
-      var = average((ptdata-mu)**2,weights=weightdata)
-      sigma = sqrt(var)
-      mu_err = sigma*sqrt(sum(weightdata**2))
-      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-      sigma_err = 0.5*var_err/sigma
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      gfunc = norm
-      y = gfunc.pdf( bins, mu, sigma)
-      l = plt.plot(bins, y, 'r--', linewidth=2)
-      plt.xlabel('$p_T^{reco}$')
-      plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-      plt.close()
-      avgpt.append(mu)
-      sigmas.append(sigma)
-      avgpt_errs.append(mu_err)
-      sigma_errs.append(sigma_err)
-
-    xp = linspace(5,150,75)
-
-    #Fit to response vs. pTtrue
-    Ropt, Rcov = curve_fit(R, avgtruept, avgres)
-    Ropts[npvedges[npvbin]] = Ropt 
-
-    plt.plot(truepts[npvbins==npvbin],responses[npvbins==npvbin],'.',xp,R(xp,*Ropt),'r-')
-    plt.errorbar(avgtruept,avgres,color='g',marker='o',linestyle='',yerr=avgres_errs)
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$p_T^{reco}/p_T^{true}$')
-    if do_all: plt.ylim(-0.5,2)
-    else: plt.ylim(0,2)
-    plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-
-    #g = R*t:
-    print Ropt
-    plt.plot(truepts[npvbins==npvbin],recopts[npvbins==npvbin],'.',xp,R(xp,*Ropt)*array(xp),'r-')
-    plt.errorbar(avgtruept,avgpt,color='g',marker='o',linestyle='',yerr=avgpt_errs)
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$p_T^{reco}$ [GeV]')
-    if do_all: plt.ylim(-10,options.maxpt+10)
-    else: plt.ylim(0,options.maxpt+10)
-    plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-
-    #dg = d(R*t):
-    plt.plot(xp,dg(xp,*Ropt),'r-')
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$f\'(p_T^{true})$')
-    plt.ylim(0,1)
-    plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-
-    if options.doCal:
-      calmuRs = []
-      calmuR_errs = []
-      calsigmaRs = []
-      calsigmaR_errs = []
-      calmus = []
-      calmu_errs = []
-      calsigmas = []
-      calsigma_errs = []
-      for ptbin in xrange(1,len(ptedges)): 
-        ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        ptestdata = g1(ptdata,*Ropt)
-        muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err = numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin)
-        calmuRs.append(muR)
-        calmuR_errs.append(muR_err)
-        calsigmaRs.append(sigmaR)
-        calsigmaR_errs.append(sigmaR_err)
-        calmus.append(mu)
-        calmu_errs.append(mu_err)
-        calsigmas.append(sigma)
-        calsigma_errs.append(sigma_err)
-
-      estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
-      plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
-      plt.errorbar(avgtruept,calmus,color='g',marker='o',linestyle='',yerr=calmu_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}$ [GeV]')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(0,options.maxpt+10)
-      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-      plt.close()
-      
-      closure = estpts/truepts
-      plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.')
-      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(0,2)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-      plt.close()
-
-      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(.95,1.05)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-      plt.close()
-
-
-    if options.doCal:
-      sigma_calculation = calsigmas
-      sigma_err_calculation = calsigma_errs
-    else:
-      sigma_calculation = array(sigmas)/dg(avgtruept,*Ropt)
-      sigma_err_calculation = array(sigma_errs)/dg(avgtruept,*Ropt)
-    npv_sigmas[npvedges[npvbin]] = sigma_calculation
-    npv_sigma_errs[npvedges[npvbin]] = sigma_err_calculation
-    plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-    plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
-    plt.xlim(0,options.maxpt+10)
-    plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-    
-    if options.doCal:
-      sigma_calculation = calsigmaRs 
-      sigma_err_calculation = calsigmaR_errs
-    else:
-      sigma_calculation = array(sigmaRs)/dg(avgtruept,*Ropt)
-      sigma_err_calculation = array(sigmaR_errs)/dg(avgtruept,*Ropt) 
-    npv_sigmaRs[npvedges[npvbin]] = sigma_calculation
-    npv_sigmaR_errs[npvedges[npvbin]] = sigma_err_calculation
-    plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-    plt.ylim(0,max(sigma_calculation)+0.1) 
-    plt.xlim(0,options.maxpt+10)
-    plt.legend(loc='upper right',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-    plt.close()
-
-  colors = ['b','r','g','purple','orange','black']
-  linestyles = ['-']*6
-  labels = ['NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]) for npvbin in xrange(1,len(npvedges))] 
-  if len(labels)>6:
-    colors = colors*2
-    linestyles+=['--']*6
-  if len(labels)>12:
-    raise RuntimeError('NPV bins are too small. Make them bigger.')
-
-  npv_keys = npv_sigmas.keys() 
-  npv_keys.sort()
-  for i,npv in enumerate(npv_keys):
-    plt.errorbar(avgtruept,npv_sigmas[npv],yerr=npv_sigma_errs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
-  plt.xlabel('$p_T^{true}$ [GeV]')
-  plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-  lowlim = min([min(s) for s in npv_sigmas.values()])
-  highlim = max([max(s) for s in npv_sigmas.values()])
-  plt.ylim(lowlim-1,highlim+1)
-  plt.xlim(0,options.maxpt+10)
-  plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.identifier+'.png')
-  plt.close()
-
-  for i,npv in enumerate(npv_keys):
-    plt.errorbar(avgtruept,npv_sigmaRs[npv],yerr=npv_sigmaR_errs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
-  plt.xlabel('$p_T^{true}$ [GeV]')
-  plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-  highlim = max([max(s) for s in npv_sigmaRs.values()])
-  plt.ylim(0,highlim+0.1)
-  plt.xlim(0,options.maxpt+10)
-  plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.identifier+'.png')
-  plt.close()
-
-  for i,ptbin in enumerate(ptedges):
-    if i==0: continue
-    plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],yerr=[npv_sigma_errs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
-    plt.xlabel('NPV')
-    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-    lowlim = min(npv_sigmas[n][i-1] for n in npv_keys)
-    highlim = max(npv_sigmas[n][i-1] for n in npv_keys)
-    plt.ylim(lowlim-1,highlim+1)
-    plt.xlim(options.minnpv,options.maxnpv)
-    plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
-    plt.close()
-
-  for i,ptbin in enumerate(ptedges):
-    if i==0: continue
-    plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmaRs[n][i-1] for n in npv_keys],yerr=[npv_sigmaR_errs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
-    plt.xlabel('NPV')
-    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-    lowlim = 0 
-    highlim = max(npv_sigmaRs[n][i-1] for n in npv_keys)
-    plt.ylim(lowlim,highlim+0.1)
-    plt.xlim(options.minnpv,options.maxnpv)
-    plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
-    plt.close()
-
-
-
-  return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
-
-def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
-  weightdata = weightdata/sum(weightdata)
-  resdata = ptestdata/trueptdata
-  muR = average(resdata,weights=weightdata)
-  varR = average((resdata-muR)**2,weights=weightdata)
-  sigmaR = sqrt(varR)
-  muR_err = sigmaR*sqrt(sum(weightdata**2))
-  varR_err = varR*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-  sigmaR_err = 0.5*varR_err/sigmaR
-  n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-  gfunc = norm
-  y = gfunc.pdf( bins, muR, sigmaR)
-  l = plt.plot(bins, y, 'r--', linewidth=2)
-  plt.xlabel('$p_T^{reco}/p_T^{true}$')
-  plt.ylabel('a.u.')
-  plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-  plt.close()
-  #avgres.append(mu)
-  #avgpt.append(average(ptdata,weights=weightdata))
-  #avgtruept.append(average(trueptdata,weights=weightdata))
-  #sigmaRs.append(sigma)
-
-  n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-  # maximum likelihood estimates
-  mu = average(ptestdata,weights=weightdata)
-  var = average((ptestdata-mu)**2,weights=weightdata)
-  sigma = sqrt(var)
-  mu_err = sigma*sqrt(sum(weightdata**2))
-  var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-  sigma_err = 0.5*var_err/sigma
-  gfunc = norm
-  y = gfunc.pdf( bins, mu, sigma)
-  l = plt.plot(bins, y, 'r--', linewidth=2)
-  plt.xlabel('$p_T^{reco}$')
-  plt.ylabel('a.u.')
-  plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-  plt.close()
-  
-  return muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err
-
-calibrate()
+(avg_mults,err_mults) = calibrate()
+pickle.dump(avg_mults,open(options.submitDir+'/avg_mults_'+options.identifier+'.p','wb'))
+pickle.dump(err_mults,open(options.submitDir+'/err_mults_'+options.identifier+'.p','wb'))
