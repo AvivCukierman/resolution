@@ -156,6 +156,8 @@ def readRoot():
   truepts = [] 
   recopts = []
   weights = [] 
+  etas = []
+  mindrs = []
   for jentry in xrange(nentries):
       if jentry>options.numEvents and options.numEvents>0: continue
       tree.GetEntry(jentry)
@@ -175,6 +177,8 @@ def readRoot():
       truept = []
       recopt = []
       weightjets = []
+      eta = []
+      mindr = []
       for i,(jpt,tjpt) in enumerate(zip(jpts,tjpts)):
           if has_eta:
             tjeta = tjetas[i]
@@ -184,6 +188,8 @@ def readRoot():
             if tjmindr<options.mindr: continue
           truept.append(tjpt)
           recopt.append(jpt)
+          eta.append(tjeta)
+          mindr.append(tjmindr)
           if has_event_weight:
             weightjets.append(event_weight)
           else: weightjets.append(1) #set all events to have the same weight
@@ -193,10 +199,14 @@ def readRoot():
       truepts += truept
       recopts += recopt
       weights += weightjets
+      etas += eta
+      mindrs += mindr
 
   save(options.submitDir+'/truepts_'+finalmu,truepts)
   save(options.submitDir+'/recopts_'+finalmu,recopts)
   save(options.submitDir+'/npvs_'+finalmu,npvs)
+  save(options.submitDir+'/etas_'+finalmu,etas)
+  save(options.submitDir+'/mindrs_'+finalmu,mindrs)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
 
   return array(recopts),array(truepts),array(npvs),array(weights)
@@ -246,9 +256,9 @@ def fitres(params=[]):
       etas = load(filename)
       if not len(etas)==len(truepts):
         raise RuntimeError('There should be the same number of etas as truth jets')
-      eta_cuts = numpy.all([abs(etas)<options.mineta,abs(etas)>options.maxeta]) 
+      eta_cuts = numpy.all([abs(etas)>options.mineta,abs(etas)<options.maxeta],axis=0) 
     else:
-      print '== '+filename+' does not exist; no additional eta cuts set (if you started reading from a root file, this is ok) =='
+      print '== '+filename+' does not exist; no eta cuts set =='
       eta_cuts = [True]*len(truepts) 
 
     filename = options.submitDir+'/'+'mindrs_'+options.identifier+'.npy'
@@ -259,7 +269,7 @@ def fitres(params=[]):
         raise RuntimeError('There should be the same number of mindRs as truth jets')
       mindr_cuts = mindrs>options.mindr
     else:
-      print '== '+filename+' does not exist; no additional mindR cuts set (if you started reading from a root file, this is ok) =='
+      print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
 
   maxpt = options.maxpt
