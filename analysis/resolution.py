@@ -4,10 +4,9 @@ import numpy
 from numpy import save
 from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
-from extend_scipy_stats import gaussian_kde
+from helper_functions import distribution_values
 from operator import sub
 from optparse import OptionParser
-from quantile import quantile
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
 try:
@@ -321,89 +320,52 @@ def fitres(params=[]):
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      # maximum likelihood estimates
-      mean = average(resdata,weights=weightdata)
-      var = average((resdata-mean)**2,weights=weightdata)
-      std = sqrt(var)
-      mean_err = std*sqrt(sum(weightdata**2))
-      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-      std_err = 0.5*var_err/std
       if options.central == 'median':
-        mu = quantile(resdata,weightdata,0.5)
-        mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
-        upper_quantile = quantile(resdata,weightdata,0.8413) #CDF(1)
-        lower_quantile = quantile(resdata,weightdata,0.1587) #CDF(-1)
-        sigma = 0.5*(upper_quantile-lower_quantile)
-        sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(resdata,weightdata,options.central)
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
         plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
         plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
         plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
       if options.central == 'mean':
-        mu = mean
-        mu_err = mean_err
-        sigma = std
-        sigma_err = std_err 
+        (mu,mu_err,sigma,sigma_err) = distribution_values(resdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       if options.central == 'mode':
-        '''mode_est = bins[numpy.argmax(n)]
-        trimmed_indices = abs(resdata-mode_est)<1.5*std
-        trimmed_resdata = resdata[trimmed_indices]
-        trimmed_weightdata = weightdata[trimmed_indices]
-        mode = average(trimmed_resdata,weights=trimmed_weightdata)
-        mode_var = average((trimmed_resdata-mode)**2,weights=trimmed_weightdata)
-        mode_std = sqrt(var)
-        mode_err = mode_std*sqrt(sum(trimmed_weightdata**2))
-        mode_var_err = mode_var*sqrt(2*sum(trimmed_weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-        #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-        mode_std_err = 0.5*mode_var_err/mode_std'''
-        '''trimmed_n,trimmed_bins,trimmed_patches = plt.hist(trimmed_resdata,normed=True,bins=50,weights=trimmed_weightdata,alpha=0)
-        gfunc = norm
-        y = gfunc.pdf(trimmed_bins,mu,sigma)
-        l = plt.plot(trimmed_bins,y,'r--',linewidth=2)'''
-        kernel = gaussian_kde(resdata,weights=weightdata)
+        (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(resdata,weightdata,options.central)
         y = kernel(bins)
         plt.plot(bins,y,'r--',linewidth=2)
-        mode_est = bins[numpy.argmax(kernel(bins))] 
-
-        smallbins = numpy.linspace(mode_est-0.2,mode_est+0.2,400) 
-        mode = smallbins[numpy.argmax(kernel(smallbins))] 
-
-        mu = mode
-        mu_err = mu 
-        sigma = mu 
-        sigma_err = mu 
+        plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
-      print mu,mu_err,sigma,sigma_err
-      pdb.set_trace()
       avgres.append(mu)
       avgres_errs.append(mu_err)
       sigmaRs.append(sigma)
       sigmaR_errs.append(sigma_err)
 
       n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
-      # maximum likelihood estimates
-      mu = average(ptdata,weights=weightdata)
-      var = average((ptdata-mu)**2,weights=weightdata)
-      sigma = sqrt(var)
-      mu_err = sigma*sqrt(sum(weightdata**2))
-      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-      sigma_err = 0.5*var_err/sigma
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      gfunc = norm
-      y = gfunc.pdf( bins, mu, sigma)
-      l = plt.plot(bins, y, 'r--', linewidth=2)
+      if options.central == 'median':
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptdata,weightdata,options.central)
+        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'mean':
+        (mu,mu_err,sigma,sigma_err) = distribution_values(ptdata,weightdata,options.central)
+        gfunc = norm
+        y = gfunc.pdf( bins, mu, sigma)
+        l = plt.plot(bins, y, 'r--', linewidth=2)
+      if options.central == 'mode':
+        (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptdata,weightdata,options.central)
+        y = kernel(bins)
+        plt.plot(bins,y,'r--',linewidth=2)
       plt.xlabel('$p_T^{reco}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
       avgpt.append(mu)
       sigmas.append(sigma)
@@ -423,7 +385,7 @@ def fitres(params=[]):
     if do_all: plt.ylim(-0.5,2)
     else: plt.ylim(0,2)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
     #g = R*t:
@@ -435,7 +397,7 @@ def fitres(params=[]):
     if do_all: plt.ylim(-10,options.maxpt+10)
     else: plt.ylim(0,options.maxpt+10)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
     #dg = d(R*t):
@@ -444,7 +406,7 @@ def fitres(params=[]):
     plt.ylabel('$f\'(p_T^{true})$')
     plt.ylim(0,1)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
     if options.doCal:
@@ -460,8 +422,54 @@ def fitres(params=[]):
         ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+        weightdata = weightdata/sum(weightdata)
         ptestdata = g1(ptdata,*Ropt)
-        muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err = numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin)
+        resestdata = ptestdata/trueptdata
+
+        n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
+        if options.central == 'median':
+          (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
+          plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+          height = 0.607*max(n) #height at x=1*sigma in normal distribution
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        if options.central == 'mean':
+          (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
+          gfunc = norm
+          y = gfunc.pdf( bins, muR, sigmaR)
+          l = plt.plot(bins, y, 'r--', linewidth=2)
+        if options.central == 'mode':
+          (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
+          y = kernel(bins)
+          plt.plot(bins,y,'r--',linewidth=2)
+        plt.xlabel('$p_T^{reco}/p_T^{true}$')
+        plt.ylabel('a.u.')
+        plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+        plt.close()
+
+        n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
+        if options.central == 'median':
+          (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
+          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+          height = 0.607*max(n) #height at x=1*sigma in normal distribution
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        if options.central == 'mean':
+          (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
+          gfunc = norm
+          y = gfunc.pdf( bins, mu, sigma)
+          l = plt.plot(bins, y, 'r--', linewidth=2)
+        if options.central == 'mode':
+          (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
+          y = kernel(bins)
+          plt.plot(bins,y,'r--',linewidth=2)
+        plt.xlabel('$p_T^{reco}$')
+        plt.ylabel('a.u.')
+        plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+        plt.close()
+
         calmuRs.append(muR)
         calmuR_errs.append(muR_err)
         calsigmaRs.append(sigmaR)
@@ -478,7 +486,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}$ [GeV]')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(0,options.maxpt+10)
-      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
       
       closure = estpts/truepts
@@ -488,7 +496,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(0,2)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
 
       plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
@@ -496,7 +504,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(.95,1.05)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
 
 
@@ -514,7 +522,7 @@ def fitres(params=[]):
     plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
     plt.xlim(0,options.maxpt+10)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
     
     if options.doCal:
@@ -531,7 +539,7 @@ def fitres(params=[]):
     plt.ylim(0,max(sigma_calculation)+0.1) 
     plt.xlim(0,options.maxpt+10)
     plt.legend(loc='upper right',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
   colors = ['b','r','g','purple','orange','black']
@@ -554,7 +562,7 @@ def fitres(params=[]):
   plt.ylim(lowlim-1,highlim+1)
   plt.xlim(0,options.maxpt+10)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.central+'_'+options.identifier+'.png')
   plt.close()
 
   for i,npv in enumerate(npv_keys):
@@ -565,7 +573,7 @@ def fitres(params=[]):
   plt.ylim(0,highlim+0.1)
   plt.xlim(0,options.maxpt+10)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.central+'_'+options.identifier+'.png')
   plt.close()
 
   for i,ptbin in enumerate(ptedges):
@@ -578,7 +586,7 @@ def fitres(params=[]):
     plt.ylim(lowlim-1,highlim+1)
     plt.xlim(options.minnpv,options.maxnpv)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
   for i,ptbin in enumerate(ptedges):
@@ -591,61 +599,19 @@ def fitres(params=[]):
     plt.ylim(lowlim,highlim+0.1)
     plt.xlim(options.minnpv,options.maxnpv)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+options.identifier+'.png')
     plt.close()
 
 
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
-def numerical_inversion(ptestdata,trueptdata,weightdata,ptbin,npvedges,npvbin):
-  weightdata = weightdata/sum(weightdata)
-  resdata = ptestdata/trueptdata
-  muR = average(resdata,weights=weightdata)
-  varR = average((resdata-muR)**2,weights=weightdata)
-  sigmaR = sqrt(varR)
-  muR_err = sigmaR*sqrt(sum(weightdata**2))
-  varR_err = varR*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-  sigmaR_err = 0.5*varR_err/sigmaR
-  n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-  gfunc = norm
-  y = gfunc.pdf( bins, muR, sigmaR)
-  l = plt.plot(bins, y, 'r--', linewidth=2)
-  plt.xlabel('$p_T^{reco}/p_T^{true}$')
-  plt.ylabel('a.u.')
-  plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-  plt.close()
-  #avgres.append(mu)
-  #avgpt.append(average(ptdata,weights=weightdata))
-  #avgtruept.append(average(trueptdata,weights=weightdata))
-  #sigmaRs.append(sigma)
-
-  n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-  # maximum likelihood estimates
-  mu = average(ptestdata,weights=weightdata)
-  var = average((ptestdata-mu)**2,weights=weightdata)
-  sigma = sqrt(var)
-  mu_err = sigma*sqrt(sum(weightdata**2))
-  var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-  #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-  sigma_err = 0.5*var_err/sigma
-  gfunc = norm
-  y = gfunc.pdf( bins, mu, sigma)
-  l = plt.plot(bins, y, 'r--', linewidth=2)
-  plt.xlabel('$p_T^{reco}$')
-  plt.ylabel('a.u.')
-  plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
-  plt.close()
-  
-  return muR,muR_err,sigmaR,sigmaR_err,mu,mu_err,sigma,sigma_err
-
 (fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue,ptedges) = fitres()
 import pickle
-pickle.dump(fit,open(options.submitDir+'/fit_'+options.identifier+'.p','wb'))
-pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.identifier+'.p','wb'))
-pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.identifier+'.p','wb'))
-pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.identifier+'.p','wb'))
-pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.identifier+'.p','wb'))
-pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.identifier+'.p','wb'))
-pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.identifier+'.p','wb'))
+pickle.dump(fit,open(options.submitDir+'/fit_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.central+'_'+options.identifier+'.p','wb'))
