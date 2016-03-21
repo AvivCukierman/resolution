@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
 from operator import sub
 from optparse import OptionParser
+from quantile import quantile
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
 try:
@@ -43,6 +44,7 @@ parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
 parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
+parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median'],default='mean')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
@@ -317,22 +319,46 @@ def fitres(params=[]):
       weightdata = weightdata/sum(weightdata)
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
-      # maximum likelihood estimates
-      mu = average(resdata,weights=weightdata)
-      var = average((resdata-mu)**2,weights=weightdata)
-      sigma = sqrt(var)
-      mu_err = sigma*sqrt(sum(weightdata**2))
-      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-      sigma_err = 0.5*var_err/sigma
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      gfunc = norm
-      y = gfunc.pdf( bins, mu, sigma)
-      l = plt.plot(bins, y, 'r--', linewidth=2)
+      if options.central == 'mean' or options.central=='median':
+        # maximum likelihood estimates
+        mean = average(resdata,weights=weightdata)
+        var = average((resdata-mean)**2,weights=weightdata)
+        std = sqrt(var)
+        mean_err = std*sqrt(sum(weightdata**2))
+        var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+        #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+        std_err = 0.5*var_err/std
+        if options.central == 'median':
+          mu = quantile(resdata,weightdata,0.5)
+          mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
+          upper_quantile = quantile(resdata,weightdata,0.8413) #CDF(1)
+          lower_quantile = quantile(resdata,weightdata,0.1587) #CDF(-1)
+          sigma = 0.5*(upper_quantile-lower_quantile)
+          sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+          height = 0.607*max(n) #height at x=1*sigma in normal distribution
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        if options.central == 'mean':
+          mu = mean
+          mu_err = mean_err
+          sigma = std
+          sigma_err = std_err 
+          gfunc = norm
+          y = gfunc.pdf( bins, mu, sigma)
+          l = plt.plot(bins, y, 'r--', linewidth=2)
+      if options.central == 'mode':
+          mu = mean
+          mu_err = mean_err
+          sigma = std
+          sigma_err = std_err 
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
+      pdb.set_trace()
       avgres.append(mu)
       avgres_errs.append(mu_err)
       sigmaRs.append(sigma)
