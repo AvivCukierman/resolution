@@ -4,6 +4,7 @@ import numpy
 from numpy import save
 from scipy.optimize import curve_fit,fsolve
 from scipy.stats import norm
+from extend_scipy_stats import gaussian_kde
 from operator import sub
 from optparse import OptionParser
 from quantile import quantile
@@ -320,44 +321,67 @@ def fitres(params=[]):
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
-      if options.central == 'mean' or options.central=='median':
-        # maximum likelihood estimates
-        mean = average(resdata,weights=weightdata)
-        var = average((resdata-mean)**2,weights=weightdata)
-        std = sqrt(var)
-        mean_err = std*sqrt(sum(weightdata**2))
-        var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
-        #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
-        std_err = 0.5*var_err/std
-        if options.central == 'median':
-          mu = quantile(resdata,weightdata,0.5)
-          mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
-          upper_quantile = quantile(resdata,weightdata,0.8413) #CDF(1)
-          lower_quantile = quantile(resdata,weightdata,0.1587) #CDF(-1)
-          sigma = 0.5*(upper_quantile-lower_quantile)
-          sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
-          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
-          height = 0.607*max(n) #height at x=1*sigma in normal distribution
-          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
-          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-        if options.central == 'mean':
-          mu = mean
-          mu_err = mean_err
-          sigma = std
-          sigma_err = std_err 
-          gfunc = norm
-          y = gfunc.pdf( bins, mu, sigma)
-          l = plt.plot(bins, y, 'r--', linewidth=2)
+      # maximum likelihood estimates
+      mean = average(resdata,weights=weightdata)
+      var = average((resdata-mean)**2,weights=weightdata)
+      std = sqrt(var)
+      mean_err = std*sqrt(sum(weightdata**2))
+      var_err = var*sqrt(2*sum(weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+      #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+      std_err = 0.5*var_err/std
+      if options.central == 'median':
+        mu = quantile(resdata,weightdata,0.5)
+        mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
+        upper_quantile = quantile(resdata,weightdata,0.8413) #CDF(1)
+        lower_quantile = quantile(resdata,weightdata,0.1587) #CDF(-1)
+        sigma = 0.5*(upper_quantile-lower_quantile)
+        sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'mean':
+        mu = mean
+        mu_err = mean_err
+        sigma = std
+        sigma_err = std_err 
+        gfunc = norm
+        y = gfunc.pdf( bins, mu, sigma)
+        l = plt.plot(bins, y, 'r--', linewidth=2)
       if options.central == 'mode':
-          mu = mean
-          mu_err = mean_err
-          sigma = std
-          sigma_err = std_err 
+        '''mode_est = bins[numpy.argmax(n)]
+        trimmed_indices = abs(resdata-mode_est)<1.5*std
+        trimmed_resdata = resdata[trimmed_indices]
+        trimmed_weightdata = weightdata[trimmed_indices]
+        mode = average(trimmed_resdata,weights=trimmed_weightdata)
+        mode_var = average((trimmed_resdata-mode)**2,weights=trimmed_weightdata)
+        mode_std = sqrt(var)
+        mode_err = mode_std*sqrt(sum(trimmed_weightdata**2))
+        mode_var_err = mode_var*sqrt(2*sum(trimmed_weightdata**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
+        #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
+        mode_std_err = 0.5*mode_var_err/mode_std'''
+        '''trimmed_n,trimmed_bins,trimmed_patches = plt.hist(trimmed_resdata,normed=True,bins=50,weights=trimmed_weightdata,alpha=0)
+        gfunc = norm
+        y = gfunc.pdf(trimmed_bins,mu,sigma)
+        l = plt.plot(trimmed_bins,y,'r--',linewidth=2)'''
+        kernel = gaussian_kde(resdata,weights=weightdata)
+        y = kernel(bins)
+        plt.plot(bins,y,'r--',linewidth=2)
+        mode_est = bins[numpy.argmax(kernel(bins))] 
+
+        smallbins = numpy.linspace(mode_est-0.2,mode_est+0.2,400) 
+        mode = smallbins[numpy.argmax(kernel(smallbins))] 
+
+        mu = mode
+        mu_err = mu 
+        sigma = mu 
+        sigma_err = mu 
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
+      print mu,mu_err,sigma,sigma_err
       pdb.set_trace()
       avgres.append(mu)
       avgres_errs.append(mu_err)
