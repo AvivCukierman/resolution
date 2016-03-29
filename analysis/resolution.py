@@ -44,7 +44,7 @@ parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
 parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
-parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median','trimmed'],default='mean')
+parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median','absolute_median','trimmed'],default='mean')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
@@ -63,8 +63,10 @@ if not os.path.exists(options.plotDir):
   print '== Making folder '+options.plotDir+' =='
   os.makedirs(options.plotDir)
 
+identifier = options.identifier
 do_all = False
 if options.cut==float('-inf'): do_all=True 
+if not do_all: identifier+='_c'+str(int(options.cut))
 
 import pdb
 
@@ -223,7 +225,6 @@ def fitres(params=[]):
     print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be faster. =='
     print '== There are '+str(len(truepts))+' total jets =='
   else:
-    # truepts, recopts, npvs required
     filename = options.submitDir+'/'+'truepts_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as truth jet pTs =='
@@ -275,6 +276,54 @@ def fitres(params=[]):
     else:
       print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
+  
+  if options.central == 'absolute_median':
+    filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
+    if not os.path.exists(filename): raise OSError(filename +' does not exist')
+    print '== Loading file <'+filename+'> as all truth jet pTs =='
+    all_truepts = load(filename)
+    print '== There are '+str(len(all_truepts))+' total truth jets =='
+
+    filename = options.submitDir+'/'+'all_npvs_'+options.identifier+'.npy'
+    if not os.path.exists(filename): raise OSError(filename +' does not exist')
+    print '== Loading file <'+filename+'> as NPVs =='
+    all_npvs = load(filename)
+    if not len(all_npvs)==len(all_truepts):
+      raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
+
+    filename = options.submitDir+'/'+'all_weights_'+options.identifier+'.npy'
+    if os.path.exists(filename): 
+      print '== Loading file <'+filename+'> as event weights =='
+      all_weights = load(filename)
+      if not len(all_weights)==len(all_truepts):
+        raise RuntimeError('There should be the same number of weights as truth jets (format is one entry per truth jet)')
+    else:
+      print '== '+filename+' does not exist; weighting every event the same =='
+      all_weights = array([1]*len(all_truepts))
+
+    filename = options.submitDir+'/'+'all_etas_'+options.identifier+'.npy'
+    if os.path.exists(filename): 
+      print '== Loading file <'+filename+'> as truth jet etas =='
+      all_etas = load(filename)
+      if not len(all_etas)==len(all_truepts):
+        raise RuntimeError('There should be the same number of etas as truth jets')
+      all_eta_cuts = numpy.all([abs(all_etas)>options.mineta,abs(all_etas)<options.maxeta],axis=0) 
+    else:
+      print '== '+filename+' does not exist; no eta cuts set =='
+      all_eta_cuts = [True]*len(all_truepts) 
+
+    filename = options.submitDir+'/'+'all_mindrs_'+options.identifier+'.npy'
+    if os.path.exists(filename):
+      print '== Loading file <'+filename+'> as truth jet mindRs =='
+      all_mindrs = load(filename)
+      if not len(all_mindrs)==len(all_truepts):
+        raise RuntimeError('There should be the same number of mindRs as truth jets')
+      all_mindr_cuts = all_mindrs>options.mindr
+    else:
+      print '== '+filename+' does not exist; no mindR cuts set =='
+      all_mindr_cuts = [True]*len(all_truepts) 
+
+
 
   maxpt = options.maxpt
   if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
@@ -294,11 +343,21 @@ def fitres(params=[]):
   npvedges = range(options.minnpv,maxnpv,options.npvbin)
   npvbins = digitize(npvs,npvedges)
 
+  if options.central=='absolute_median':
+    all_cuts = all([all_truepts>options.minpt,all_eta_cuts,all_mindr_cuts],axis=0)
+    all_truepts = all_truepts[all_cuts]
+    all_npvs = all_npvs[all_cuts]
+    all_weights = all_weights[all_cuts]
+
+    all_ptbins = digitize(all_truepts,ptedges)
+    all_npvbins = digitize(all_npvs,npvedges)
+
   npv_sigmas = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigma_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  if options.central == 'absolute_median': npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
@@ -311,6 +370,7 @@ def fitres(params=[]):
     avgpt_errs = []
     sigmas = []
     sigma_errs = []
+    if options.central == 'absolute_median': efficiencies = [] 
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
@@ -318,12 +378,31 @@ def fitres(params=[]):
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      weightdata = weightdata/sum(weightdata)
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+      if options.central == 'absolute_median':
+        all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
+        efficiency = sum(weightdata)/sum(all_weightdata)
+        if efficiency>1:
+          #raise RuntimeError('Efficiency > 1. Check truth jets?')
+          efficiency=1
+        efficiencies.append(efficiency)
+
+      weightdata = weightdata/sum(weightdata)
+      if options.central == 'absolute_median':
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(resdata,weightdata,options.central,eff=efficiency)
+        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        if lower_quantile>float('-inf'):
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        else:
+          plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
       if options.central == 'median':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(resdata,weightdata,options.central)
+        print mu
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
         plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
@@ -350,7 +429,7 @@ def fitres(params=[]):
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
       avgres.append(mu)
       avgres_errs.append(mu_err)
@@ -358,6 +437,16 @@ def fitres(params=[]):
       sigmaR_errs.append(sigma_err)
 
       n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,histtype='stepfilled')
+      if options.central == 'absolute_median':
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptdata,weightdata,options.central,eff=efficiency)
+        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        if lower_quantile>float('-inf'):
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        else:
+          plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
       if options.central == 'median':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptdata,weightdata,options.central)
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -387,12 +476,14 @@ def fitres(params=[]):
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}$')
       plt.ylabel('a.u.')
-      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
       avgpt.append(mu)
       sigmas.append(sigma)
       avgpt_errs.append(mu_err)
       sigma_errs.append(sigma_err)
+
+    if options.central == 'absolute_median': npv_efficiencies[npvedges[npvbin]] = efficiencies
 
     xp = linspace(5,150,75)
 
@@ -407,7 +498,7 @@ def fitres(params=[]):
     if do_all: plt.ylim(-0.5,2)
     else: plt.ylim(0,2)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetresponse_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
     #g = R*t:
@@ -419,7 +510,7 @@ def fitres(params=[]):
     if do_all: plt.ylim(-10,options.maxpt+10)
     else: plt.ylim(0,options.maxpt+10)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
     #dg = d(R*t):
@@ -428,7 +519,7 @@ def fitres(params=[]):
     plt.ylabel('$f\'(p_T^{true})$')
     plt.ylim(0,1)
     plt.xlim(0,options.maxpt+10)
-    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
     if options.doCal:
@@ -444,11 +535,27 @@ def fitres(params=[]):
         ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        weightdata = weightdata/sum(weightdata)
         ptestdata = g1(ptdata,*Ropt)
         resestdata = ptestdata/trueptdata
 
+        if options.central == 'absolute_median':
+          all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
+          efficiency = sum(weightdata)/sum(all_weightdata)
+          if efficiency>1:
+            #raise RuntimeError('Efficiency > 1. Check truth jets?')
+            efficiency=1
         n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+        if options.central == 'absolute_median':
+          (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
+          plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+          height = 0.607*max(n) #height at x=1*sigma in normal distribution
+          if lower_quantile>float('-inf'):
+            plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+            plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+          else:
+            plt.plot((muR,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        weightdata = weightdata/sum(weightdata)
         if options.central == 'median':
           (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
           plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -478,10 +585,20 @@ def fitres(params=[]):
           l = plt.plot(newbins, newy, 'r--', linewidth=2)
         plt.xlabel('$p_T^{reco}/p_T^{true}$')
         plt.ylabel('a.u.')
-        plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+        plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
         plt.close()
 
         n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+        if options.central == 'absolute_median':
+          (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
+          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+          height = 0.607*max(n) #height at x=1*sigma in normal distribution
+          if lower_quantile>float('-inf'):
+            plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+            plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+          else:
+            plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
         if options.central == 'median':
           (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
           plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -511,7 +628,7 @@ def fitres(params=[]):
           l = plt.plot(newbins, newy, 'r--', linewidth=2)
         plt.xlabel('$p_T^{reco}$')
         plt.ylabel('a.u.')
-        plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+        plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
         plt.close()
 
         calmuRs.append(muR)
@@ -530,7 +647,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}$ [GeV]')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(0,options.maxpt+10)
-      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
       
       closure = estpts/truepts
@@ -540,7 +657,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(0,2)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
 
       plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
@@ -548,7 +665,7 @@ def fitres(params=[]):
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,options.maxpt+10)
       plt.ylim(.90,1.1)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
 
 
@@ -566,7 +683,7 @@ def fitres(params=[]):
     plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
     plt.xlim(0,options.maxpt+10)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
     
     if options.doCal:
@@ -583,7 +700,7 @@ def fitres(params=[]):
     plt.ylim(0,max(sigma_calculation)+0.1) 
     plt.xlim(0,options.maxpt+10)
     plt.legend(loc='upper right',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
   colors = ['b','r','g','purple','orange','black']
@@ -606,7 +723,7 @@ def fitres(params=[]):
   plt.ylim(lowlim-1,highlim+1)
   plt.xlim(0,options.maxpt+10)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.central+'_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigma_pttrue_'+options.central+'_'+identifier+'.png')
   plt.close()
 
   for i,npv in enumerate(npv_keys):
@@ -617,7 +734,7 @@ def fitres(params=[]):
   plt.ylim(0,highlim+0.1)
   plt.xlim(0,options.maxpt+10)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
-  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.central+'_'+options.identifier+'.png')
+  plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.central+'_'+identifier+'.png')
   plt.close()
 
   for i,ptbin in enumerate(ptedges):
@@ -630,7 +747,7 @@ def fitres(params=[]):
     plt.ylim(lowlim-1,highlim+1)
     plt.xlim(options.minnpv,options.maxnpv)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
   for i,ptbin in enumerate(ptedges):
@@ -643,19 +760,20 @@ def fitres(params=[]):
     plt.ylim(lowlim,highlim+0.1)
     plt.xlim(options.minnpv,options.maxnpv)
     plt.legend(loc='upper left',frameon=False,numpoints=1)
-    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+options.identifier+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
 
+  if options.central == 'absolute_median': pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
-(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue,ptedges) = fitres()
 import pickle
-pickle.dump(fit,open(options.submitDir+'/fit_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.central+'_'+options.identifier+'.p','wb'))
-pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.central+'_'+options.identifier+'.p','wb'))
+(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue,ptedges) = fitres()
+pickle.dump(fit,open(options.submitDir+'/fit_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.central+'_'+identifier+'.p','wb'))
+pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.central+'_'+identifier+'.p','wb'))
