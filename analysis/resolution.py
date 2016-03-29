@@ -472,7 +472,7 @@ def fitres(params=[]):
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           gfunc = norm
           y = gfunc.pdf( bins, muR, sigmaR)
-          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigma)),'r--',linewidth=2)
+          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           newy = y[all([bins>lower,bins<upper],axis=0)]
           l = plt.plot(newbins, newy, 'r--', linewidth=2)
