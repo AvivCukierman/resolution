@@ -29,12 +29,17 @@ parser.add_option("-i","--identifier", help="sample identifier",type=str, defaul
 parser.add_option("-r","--root", help="Root input",action="store_true", default=False)
 
 # Root configuration
+## Reconstructed jets and matched truth jets
 parser.add_option("--jetpt", help="reco jet pT branch name",type=str, default="j0pt")
-parser.add_option("--tjetpt", help="truth jet pT branch name",type=str, default="tj0pt")
+parser.add_option("--tjetpt", help="matched truth jet pT branch name",type=str, default="tj0pt")
 parser.add_option("--npv", help="NPV branch name",type=str, default="NPV")
-parser.add_option("--tjeteta", help="truth jet eta branch name",type=str, default="tj0eta")
-parser.add_option("--tjetmindr", help="truth jet mindr branch name",type=str, default="tj0mindr")
+parser.add_option("--tjeteta", help="matched truth jet eta branch name",type=str, default="tj0eta")
+parser.add_option("--tjetmindr", help="matched truth jet mindr branch name",type=str, default="tj0mindr")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
+## All truth jets (only required if using absolute scale) 
+parser.add_option("--all_tjetpt", help="all truth jet pT branch name",type=str, default="tjpt")
+parser.add_option("--all_tjeteta", help="all truth jet eta branch name",type=str, default="tjeta")
+parser.add_option("--all_tjetmindr", help="all truth jet mindr branch name",type=str, default="tjmindr")
 
 # jet configuration
 parser.add_option("-c","--cut", default=float('-inf'), type=float, help="low pT cut on reco jets")
@@ -137,7 +142,7 @@ def readRoot():
   # required:
   if options.jetpt not in branches: raise RuntimeError(options.jetpt+' branch does not exist. This is the branch containing reco jet pTs.')
   else: print '== \''+options.jetpt+'\' branch is being read as reco jet pTs =='
-  if options.tjetpt not in branches: raise RuntimeError(options.tjetpt+' branch does not exist. This is the branch containing truth jet pTs.')
+  if options.tjetpt not in branches: raise RuntimeError(options.tjetpt+' branch does not exist. This is the branch containing matched truth jet pTs.')
   else: print '== \''+options.tjetpt+'\' branch is being read as truth jet pTs =='
   if options.npv not in branches: raise RuntimeError(options.npv+' branch does not exist. This is the branch containing NPVs.')
   else: print '== \''+options.npv+'\' branch is being read as NPVs =='
@@ -149,14 +154,27 @@ def readRoot():
   else:
     has_event_weight=True
     print '== \''+options.event_weight+'\' branch is being read as event weights =='
-  if options.tjeteta not in branches: print '== \''+options.tjeteta+'\' branch does not exist; no eta cuts set =='  
+  if options.tjeteta not in branches: print '== \''+options.tjeteta+'\' branch does not exist; no eta cuts set on matched truth jets =='  
   else:
     has_eta = True
-    print '== \''+options.tjeteta+'\' branch being read as truth jet etas =='
-  if options.tjetmindr not in branches: print '== \''+options.tjetmindr+'\' branch does not exist; no mindr cuts set =='  
+    print '== \''+options.tjeteta+'\' branch being read as matched truth jet etas =='
+  if options.tjetmindr not in branches: print '== \''+options.tjetmindr+'\' branch does not exist; no mindr cuts set on matched truth jets=='  
   else:
     has_mindr = True
-    print '== \''+options.tjetmindr+'\' branch being read as truth jet mindrs =='
+    print '== \''+options.tjetmindr+'\' branch being read as matched truth jet mindrs =='
+
+  if absolute:
+    if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
+    has_all_eta = False
+    has_all_mindr = False
+    if options.all_tjeteta not in branches: print '== \''+options.all_tjeteta+'\' branch does not exist; no eta cuts set on all truth jets =='  
+    else:
+      has_all_eta = True
+      print '== \''+options.tjeteta+'\' branch being read as all truth jet etas =='
+    if options.all_tjetmindr not in branches: print '== \''+options.all_tjetmindr+'\' branch does not exist; no mindr cuts set on all truth jets =='  
+    else:
+      has_all_mindr = True
+      print '== \''+options.tjetmindr+'\' branch being read as all truth jet mindrs =='
 
   nentries = tree.GetEntries()
 
@@ -167,6 +185,14 @@ def readRoot():
   weights = [] 
   etas = []
   mindrs = []
+
+  if absolute:
+    all_weights = []
+    all_npvs = []
+    all_truepts = []
+    all_etas = []
+    all_mindrs = []
+
   for jentry in xrange(nentries):
       if jentry>options.numEvents and options.numEvents>0: continue
       tree.GetEntry(jentry)
@@ -203,13 +229,44 @@ def readRoot():
             weightjets.append(event_weight)
           else: weightjets.append(1) #set all events to have the same weight
 
-      npv = [npv]*len(truept)
-      npvs += npv
+      jet_npv = [npv]*len(truept)
+      npvs += jet_npv
       truepts += truept
       recopts += recopt
       weights += weightjets
       etas += eta
       mindrs += mindr
+
+      if absolute:
+        all_tjpts = getattr(tree,options.all_tjetpt)
+
+        if has_all_eta: all_tjetas = getattr(tree,options.all_tjeteta)
+        if has_all_mindr: all_tjmindrs = getattr(tree,options.all_tjetmindr)
+
+        all_truept = []
+        all_weightjets = []
+        all_eta = []
+        all_mindr = []
+        for i,tjpt in enumerate(all_tjpts):
+            if has_all_eta:
+              all_tjeta = all_tjetas[i]
+              if fabs(all_tjeta)>options.maxeta or fabs(all_tjeta)<options.mineta: continue
+            if has_all_mindr:
+              all_tjmindr = all_tjmindrs[i]
+              if all_tjmindr<options.mindr: continue
+            all_truept.append(tjpt)
+            all_eta.append(all_tjeta)
+            all_mindr.append(all_tjmindr)
+            if has_event_weight:
+              all_weightjets.append(event_weight)
+            else: weightjets.append(1) #set all events to have the same weight
+
+        all_npv = [npv]*len(all_truept)
+        all_npvs += all_npv
+        all_truepts += all_truept
+        all_weights += all_weightjets
+        all_etas += all_eta
+        all_mindrs += all_mindr
 
   save(options.submitDir+'/truepts_'+finalmu,truepts)
   save(options.submitDir+'/recopts_'+finalmu,recopts)
@@ -218,15 +275,31 @@ def readRoot():
   save(options.submitDir+'/mindrs_'+finalmu,mindrs)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
 
-  return array(recopts),array(truepts),array(npvs),array(weights)
+  if absolute:
+    save(options.submitDir+'/all_truepts_'+finalmu,all_truepts)
+    save(options.submitDir+'/all_npvs_'+finalmu,all_npvs)
+    save(options.submitDir+'/all_etas_'+finalmu,all_etas)
+    save(options.submitDir+'/all_mindrs_'+finalmu,all_mindrs)
+    if has_event_weight: save(options.submitDir+'/all_weights_'+finalmu,all_weights)
+
+  if absolute:
+    return array(recopts),array(truepts),array(npvs),array(weights),array(all_truepts),array(all_npvs),array(all_weights)
+  else:
+    return array(recopts),array(truepts),array(npvs),array(weights)
 
 def fitres(params=[]):
   if options.root: 
-    recopts,truepts,npvs,weights = readRoot()
+    if absolute:
+      recopts,truepts,npvs,weights,all_truepts,all_npvs,all_weights = readRoot()
+      all_eta_cuts = [True]*len(all_truepts)
+      all_mindr_cuts = [True]*len(all_truepts)
+    else:
+      recopts,truepts,npvs,weights = readRoot()
     eta_cuts = [True]*len(truepts) 
     mindr_cuts = [True]*len(truepts) 
     print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be faster. =='
-    print '== There are '+str(len(truepts))+' total jets =='
+    print '== There are '+str(len(truepts))+' total matched jets =='
+    if absolute: print '== There are '+str(len(all_truepts))+' total truth jets =='
   else:
     filename = options.submitDir+'/'+'truepts_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
@@ -273,6 +346,7 @@ def fitres(params=[]):
     if os.path.exists(filename):
       print '== Loading file <'+filename+'> as truth jet mindRs =='
       mindrs = load(filename)
+      pdb.set_trace()
       if not len(mindrs)==len(truepts):
         raise RuntimeError('There should be the same number of mindRs as truth jets')
       mindr_cuts = mindrs>options.mindr
@@ -280,51 +354,51 @@ def fitres(params=[]):
       print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
   
-  if absolute:
-    filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
-    if not os.path.exists(filename): raise OSError(filename +' does not exist')
-    print '== Loading file <'+filename+'> as all truth jet pTs =='
-    all_truepts = load(filename)
-    print '== There are '+str(len(all_truepts))+' total truth jets =='
+    if absolute:
+      filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
+      if not os.path.exists(filename): raise OSError(filename +' does not exist')
+      print '== Loading file <'+filename+'> as all truth jet pTs =='
+      all_truepts = load(filename)
+      print '== There are '+str(len(all_truepts))+' total truth jets =='
 
-    filename = options.submitDir+'/'+'all_npvs_'+options.identifier+'.npy'
-    if not os.path.exists(filename): raise OSError(filename +' does not exist')
-    print '== Loading file <'+filename+'> as NPVs =='
-    all_npvs = load(filename)
-    if not len(all_npvs)==len(all_truepts):
-      raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
+      filename = options.submitDir+'/'+'all_npvs_'+options.identifier+'.npy'
+      if not os.path.exists(filename): raise OSError(filename +' does not exist')
+      print '== Loading file <'+filename+'> as NPVs =='
+      all_npvs = load(filename)
+      if not len(all_npvs)==len(all_truepts):
+        raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
 
-    filename = options.submitDir+'/'+'all_weights_'+options.identifier+'.npy'
-    if os.path.exists(filename): 
-      print '== Loading file <'+filename+'> as event weights =='
-      all_weights = load(filename)
-      if not len(all_weights)==len(all_truepts):
-        raise RuntimeError('There should be the same number of weights as truth jets (format is one entry per truth jet)')
-    else:
-      print '== '+filename+' does not exist; weighting every event the same =='
-      all_weights = array([1]*len(all_truepts))
+      filename = options.submitDir+'/'+'all_weights_'+options.identifier+'.npy'
+      if os.path.exists(filename): 
+        print '== Loading file <'+filename+'> as event weights =='
+        all_weights = load(filename)
+        if not len(all_weights)==len(all_truepts):
+          raise RuntimeError('There should be the same number of weights as truth jets (format is one entry per truth jet)')
+      else:
+        print '== '+filename+' does not exist; weighting every event the same =='
+        all_weights = array([1]*len(all_truepts))
 
-    filename = options.submitDir+'/'+'all_etas_'+options.identifier+'.npy'
-    if os.path.exists(filename): 
-      print '== Loading file <'+filename+'> as truth jet etas =='
-      all_etas = load(filename)
-      if not len(all_etas)==len(all_truepts):
-        raise RuntimeError('There should be the same number of etas as truth jets')
-      all_eta_cuts = numpy.all([abs(all_etas)>options.mineta,abs(all_etas)<options.maxeta],axis=0) 
-    else:
-      print '== '+filename+' does not exist; no eta cuts set =='
-      all_eta_cuts = [True]*len(all_truepts) 
+      filename = options.submitDir+'/'+'all_etas_'+options.identifier+'.npy'
+      if os.path.exists(filename): 
+        print '== Loading file <'+filename+'> as truth jet etas =='
+        all_etas = load(filename)
+        if not len(all_etas)==len(all_truepts):
+          raise RuntimeError('There should be the same number of etas as truth jets')
+        all_eta_cuts = numpy.all([abs(all_etas)>options.mineta,abs(all_etas)<options.maxeta],axis=0) 
+      else:
+        print '== '+filename+' does not exist; no eta cuts set =='
+        all_eta_cuts = [True]*len(all_truepts) 
 
-    filename = options.submitDir+'/'+'all_mindrs_'+options.identifier+'.npy'
-    if os.path.exists(filename):
-      print '== Loading file <'+filename+'> as truth jet mindRs =='
-      all_mindrs = load(filename)
-      if not len(all_mindrs)==len(all_truepts):
-        raise RuntimeError('There should be the same number of mindRs as truth jets')
-      all_mindr_cuts = all_mindrs>options.mindr
-    else:
-      print '== '+filename+' does not exist; no mindR cuts set =='
-      all_mindr_cuts = [True]*len(all_truepts) 
+      filename = options.submitDir+'/'+'all_mindrs_'+options.identifier+'.npy'
+      if os.path.exists(filename):
+        print '== Loading file <'+filename+'> as truth jet mindRs =='
+        all_mindrs = load(filename)
+        if not len(all_mindrs)==len(all_truepts):
+          raise RuntimeError('There should be the same number of mindRs as truth jets')
+        all_mindr_cuts = all_mindrs>options.mindr
+      else:
+        print '== '+filename+' does not exist; no mindR cuts set =='
+        all_mindr_cuts = [True]*len(all_truepts) 
 
 
 
