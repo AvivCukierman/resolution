@@ -4,7 +4,7 @@ from scipy import stats
 import numpy
 from numpy import linspace,array,mean,std,average,sqrt
 
-def distribution_values(data,weights,central):
+def distribution_values(data,weights,central,eff=1):
       weights=weights/sum(weights) #normalize
       # maximum likelihood estimates
       mean = average(data,weights=weights)
@@ -14,6 +14,15 @@ def distribution_values(data,weights,central):
       var_err = var*sqrt(2*sum(weights**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
       #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
       std_err = 0.5*var_err/std
+      if central == 'absolute_median':
+        mu = quantile(data,weights,(0.5-(1-eff))/eff)
+        mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
+        upper_quantile = quantile(data,weights,(0.8413-(1-eff))/eff) #CDF(1)
+        if 0.1587 < (1-eff): lower_quantile = float('-inf')
+        else: lower_quantile = quantile(data,weights,(0.1587-(1-eff))/eff)
+        sigma = (upper_quantile-mu)
+        sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+        return mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile
       if central == 'median':
         mu = quantile(data,weights,0.5)
         mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
