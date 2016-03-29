@@ -68,6 +68,9 @@ do_all = False
 if options.cut==float('-inf'): do_all=True 
 if not do_all: identifier+='_c'+str(int(options.cut))
 
+absolute = False
+if 'absolute' in options.central: absolute=True
+
 import pdb
 
 asym = 10 # shift distribution to the right to get better fit and have R(0) be finite
@@ -277,7 +280,7 @@ def fitres(params=[]):
       print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
   
-  if options.central == 'absolute_median':
+  if absolute:
     filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as all truth jet pTs =='
@@ -343,7 +346,7 @@ def fitres(params=[]):
   npvedges = range(options.minnpv,maxnpv,options.npvbin)
   npvbins = digitize(npvs,npvedges)
 
-  if options.central=='absolute_median':
+  if absolute:
     all_cuts = all([all_truepts>options.minpt,all_eta_cuts,all_mindr_cuts],axis=0)
     all_truepts = all_truepts[all_cuts]
     all_npvs = all_npvs[all_cuts]
@@ -357,7 +360,7 @@ def fitres(params=[]):
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  if options.central == 'absolute_median': npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  if absolute: npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
@@ -370,7 +373,7 @@ def fitres(params=[]):
     avgpt_errs = []
     sigmas = []
     sigma_errs = []
-    if options.central == 'absolute_median': efficiencies = [] 
+    if absolute: efficiencies = [] 
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
@@ -381,7 +384,7 @@ def fitres(params=[]):
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
-      if options.central == 'absolute_median':
+      if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
         efficiency = sum(weightdata)/sum(all_weightdata)
         if efficiency>1:
@@ -483,7 +486,7 @@ def fitres(params=[]):
       avgpt_errs.append(mu_err)
       sigma_errs.append(sigma_err)
 
-    if options.central == 'absolute_median': npv_efficiencies[npvedges[npvbin]] = efficiencies
+    if absolute: npv_efficiencies[npvedges[npvbin]] = efficiencies
 
     xp = linspace(5,150,75)
 
@@ -538,7 +541,7 @@ def fitres(params=[]):
         ptestdata = g1(ptdata,*Ropt)
         resestdata = ptestdata/trueptdata
 
-        if options.central == 'absolute_median':
+        if absolute:
           all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
           efficiency = sum(weightdata)/sum(all_weightdata)
           if efficiency>1:
@@ -764,7 +767,7 @@ def fitres(params=[]):
     plt.close()
 
 
-  if options.central == 'absolute_median': pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
+  if absolute: pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
