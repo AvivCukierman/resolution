@@ -34,6 +34,7 @@ def distribution_values(data,weights,central):
         binsize = bins[1]-bins[0]
         smallbins = numpy.linspace(mode_est-2*binsize,mode_est+2*binsize,400) 
         mode = smallbins[numpy.argmax(kernel(smallbins))] 
+        return mode,mean_err,std,std_err,kernel
       if central == 'trimmed':
         n,bins = numpy.histogram(data,weights=weights,bins=50)
         max_val = max(n) 
