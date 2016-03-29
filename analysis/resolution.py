@@ -44,7 +44,7 @@ parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
 parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
-parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median'],default='mean')
+parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median','trimmed'],default='mean')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
@@ -94,7 +94,9 @@ def g1(x,a,b,c):
       approx = (round(x,1),round(a,1),round(b,1),round(c,1))
       if approx not in memoized:
         func = lambda y: approx[0]-g(y,a,b,c)
-        memoized[approx] = fsolve(func,approx)[0]
+        if approx>=0: x0 = max([approx[0],10])
+        if approx<0: x0 = min([approx[0],-10])
+        memoized[approx] = fsolve(func,x0)[0]
         #print approx,memoized[approx]
       result.append(memoized[approx])
     return array(result)
@@ -319,7 +321,7 @@ def fitres(params=[]):
       weightdata = weightdata/sum(weightdata)
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
-      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b')
+      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
       if options.central == 'median':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(resdata,weightdata,options.central)
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -331,12 +333,21 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(resdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       if options.central == 'mode':
         (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(resdata,weightdata,options.central)
         y = kernel(bins)
         plt.plot(bins,y,'r--',linewidth=2)
         plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
+      if options.central == 'trimmed':
+        (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(resdata,weightdata,options.central)
+        gfunc = norm
+        y = gfunc.pdf(bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        newy = y[all([bins>lower,bins<upper],axis=0)]
+        l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
@@ -346,7 +357,7 @@ def fitres(params=[]):
       sigmaRs.append(sigma)
       sigmaR_errs.append(sigma_err)
 
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata)
+      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,histtype='stepfilled')
       if options.central == 'median':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptdata,weightdata,options.central)
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -358,11 +369,22 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(ptdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       if options.central == 'mode':
         (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptdata,weightdata,options.central)
         y = kernel(bins)
+        plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
         plt.plot(bins,y,'r--',linewidth=2)
+      if options.central == 'trimmed':
+        (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptdata,weightdata,options.central)
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        gfunc = norm
+        y = gfunc.pdf( bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        newy = y[all([bins>lower,bins<upper],axis=0)]
+        l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}$')
       plt.ylabel('a.u.')
       plt.savefig(options.plotDir+'/fbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
@@ -426,7 +448,7 @@ def fitres(params=[]):
         ptestdata = g1(ptdata,*Ropt)
         resestdata = ptestdata/trueptdata
 
-        n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
+        n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
         if options.central == 'median':
           (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
           plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -438,17 +460,28 @@ def fitres(params=[]):
           (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
           gfunc = norm
           y = gfunc.pdf( bins, muR, sigmaR)
+          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
           l = plt.plot(bins, y, 'r--', linewidth=2)
         if options.central == 'mode':
           (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
           y = kernel(bins)
+          plt.plot((muR,muR),(0,kernel(muR)),'r--',linewidth=2)
           plt.plot(bins,y,'r--',linewidth=2)
+        if options.central == 'trimmed':
+          (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
+          newbins = bins[all([bins>lower,bins<upper],axis=0)]
+          gfunc = norm
+          y = gfunc.pdf( bins, muR, sigmaR)
+          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigma)),'r--',linewidth=2)
+          newbins = bins[all([bins>lower,bins<upper],axis=0)]
+          newy = y[all([bins>lower,bins<upper],axis=0)]
+          l = plt.plot(newbins, newy, 'r--', linewidth=2)
         plt.xlabel('$p_T^{reco}/p_T^{true}$')
         plt.ylabel('a.u.')
         plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
         plt.close()
 
-        n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b')
+        n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
         if options.central == 'median':
           (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
           plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -460,11 +493,22 @@ def fitres(params=[]):
           (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
           gfunc = norm
           y = gfunc.pdf( bins, mu, sigma)
+          plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
           l = plt.plot(bins, y, 'r--', linewidth=2)
         if options.central == 'mode':
           (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
           y = kernel(bins)
+          plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
           plt.plot(bins,y,'r--',linewidth=2)
+        if options.central == 'trimmed':
+          (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
+          newbins = bins[all([bins>lower,bins<upper],axis=0)]
+          gfunc = norm
+          y = gfunc.pdf( bins, mu, sigma)
+          plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+          newbins = bins[all([bins>lower,bins<upper],axis=0)]
+          newy = y[all([bins>lower,bins<upper],axis=0)]
+          l = plt.plot(newbins, newy, 'r--', linewidth=2)
         plt.xlabel('$p_T^{reco}$')
         plt.ylabel('a.u.')
         plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
@@ -503,7 +547,7 @@ def fitres(params=[]):
       plt.xlabel('$p_T^{true}$ [GeV]')
       plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
       plt.xlim(0,options.maxpt+10)
-      plt.ylim(.95,1.05)
+      plt.ylim(.90,1.1)
       plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+options.identifier+'.png')
       plt.close()
 
