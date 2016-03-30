@@ -346,7 +346,6 @@ def fitres(params=[]):
     if os.path.exists(filename):
       print '== Loading file <'+filename+'> as truth jet mindRs =='
       mindrs = load(filename)
-      pdb.set_trace()
       if not len(mindrs)==len(truepts):
         raise RuntimeError('There should be the same number of mindRs as truth jets')
       mindr_cuts = mindrs>options.mindr
