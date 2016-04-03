@@ -3,6 +3,7 @@ from extend_scipy_stats import gaussian_kde
 from scipy import stats 
 import numpy
 from numpy import linspace,array,mean,std,average,sqrt
+import pdb
 
 def distribution_values(data,weights,central,eff=1):
       weights=weights/sum(weights) #normalize
@@ -50,9 +51,9 @@ def distribution_values(data,weights,central,eff=1):
         max_bin = numpy.argmax(n)
 
         upper = max_bin
-        while(n[upper]>max_val/3.5 and bins[upper]<1.75*std+bins[max_bin]): upper+=1
+        while(n[upper]>max_val/3.5 and bins[upper]<1.75*std+bins[max_bin] and upper<len(n)): upper+=1
         lower = max_bin
-        while(n[lower]>max_val/3.5 and bins[lower]>-1.75*std+bins[max_bin]): lower-=1
+        while(n[lower]>max_val/3.5 and bins[lower]>-1.75*std+bins[max_bin] and lower>0): lower-=1
 
         upper_val = bins[upper]
         lower_val = bins[lower]
