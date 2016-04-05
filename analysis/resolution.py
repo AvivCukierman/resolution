@@ -48,6 +48,7 @@ parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, def
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
+parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=False)
 parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
 parser.add_option("-m","--central",help="Choice of notion of central tendency (mean, mode, or median)",type='choice',choices=['mean','mode','median','absolute_median','trimmed'],default='mean')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
@@ -73,8 +74,7 @@ do_all = False
 if options.cut==float('-inf'): do_all=True 
 if not do_all: identifier+='_c'+str(int(options.cut))
 
-absolute = False
-if 'absolute' in options.central: absolute=True
+absolute = options.absolute
 
 import pdb
 
@@ -302,6 +302,7 @@ def fitres(params=[]):
     if absolute: print '== There are '+str(len(all_truepts))+' total truth jets =='
   else:
     filename = options.submitDir+'/'+'truepts_'+options.identifier+'.npy'
+    print filename
     if not os.path.exists(filename): raise OSError(filename +' does not exist')
     print '== Loading file <'+filename+'> as truth jet pTs =='
     truepts = load(filename)
