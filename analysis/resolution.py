@@ -468,6 +468,7 @@ def fitres(params=[]):
 
       weightdata = weightdata/sum(weightdata)
       if options.central == 'absolute_median':
+        if not absolute: raise RuntimeError('In order to use absolute median, you have to have all truth jets and calculate efficiency. Use -e option.')
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(resdata,weightdata,options.central,eff=efficiency)
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
