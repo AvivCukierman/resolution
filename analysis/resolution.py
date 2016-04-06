@@ -48,8 +48,8 @@ parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, def
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
-parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=False)
-parser.add_option("-n","--doCal",help="Do full numerical inversion calibration",action="store_true",default=False)
+parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=True)
+parser.add_option("--doEst",help="Estimate resolution rather than doing full numerical inversion",action="store_true",default=False)
 parser.add_option("-m","--central",help="Choice of notion of central tendency/resolution (mean, mode, median, absolute_median, or trimmed)",type='choice',choices=['mean','mode','median','absolute_median','trimmed'],default='mode')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
@@ -602,7 +602,7 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
-    if options.doCal:
+    if not options.doEst:
       calmuRs = []
       calmuR_errs = []
       calsigmaRs = []
@@ -751,7 +751,7 @@ def fitres(params=[]):
       plt.close()
 
 
-    if options.doCal:
+    if not options.doEst:
       sigma_calculation = calsigmas
       sigma_err_calculation = calsigma_errs
     else:
@@ -768,7 +768,7 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
     
-    if options.doCal:
+    if not options.doEst:
       sigma_calculation = calsigmaRs 
       sigma_err_calculation = calsigmaR_errs
     else:
