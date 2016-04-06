@@ -92,7 +92,7 @@ def plot_sigmas():
       npv_sigmaRs = pickle.load(open(options.submitDir+'/'+'sigmaRs_'+identifier+'.p','rb'))
       npv_sigmaR_errs = pickle.load(open(options.submitDir+'/'+'sigmaR_errs_'+identifier+'.p','rb'))
 
-      npv_keys = npv_sigmas.keys() 
+      npv_keys = npv_sigmaRs.keys() 
       npv_keys.sort()
       npvbin = npv_keys[1]-npv_keys[0]
 
