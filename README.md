@@ -40,9 +40,11 @@ The optional files are:
 Note that all of the above arrays should be the same length.
 
 If the `-e` flag is set to calculate efficiencies, the required files are:
+
 `'all_truepts_'+identifier+'.npy'` (the pT of all truth jets)  
 `'all_npvs_'+identifier+'.npy'` (the NPV of the event that the truth jet is in)
 And the optional files are:
+
 `'all_etas_'+identifier+'.npy'` (the eta of the truth jets)
 `'all_mindrs_'+identifier+'.npy'` (the minimum dR from the truth jets to any other truth jet)  
 `'all_weights_'+identifier+'.npy'` (the weight of the event that the truth jet is in) 
@@ -55,6 +57,7 @@ The calibration is done via the process of numerical inversion, through applying
 One important option int the analysis configuration is the `-e` flag. This flag tells the script to calculate jet collection efficiencies, and is required for some definitions of central tendency/resolution. Some extra branches/files are required in order to utilize this option.
 
 A very important option in the analysis configuration is the `-m` option. This indicates which notion of central tendency and resolution to use in the calibration. For many experimental jet collections, the response distributions are non-Gaussian, and so the mean, median, and mode are generally all different, requiring some thought on the part of the analyzer as to which notion of central tendency to use. See, e.g., a discussion in the [JES/JER group](https://indico.cern.ch/event/478081/) about different approaches to this answering this question. The options are:
+
 Option | Central Tendency | Resolution
 --- | --- | ---
 mean | naive Gaussian mean | naive Gaussian width
