@@ -48,9 +48,9 @@ parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, def
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
 
 # analysis configuration
-parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=True)
+parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=False)
 parser.add_option("--doEst",help="Estimate resolution rather than doing full numerical inversion",action="store_true",default=False)
-parser.add_option("-m","--central",help="Choice of notion of central tendency/resolution (mean, mode, median, absolute_median, or trimmed)",type='choice',choices=['mean','mode','median','absolute_median','trimmed'],default='mode')
+parser.add_option("-m","--central",help="Choice of notion of central tendency/resolution (mean, mode, median, absolute_median, or trimmed)",type='choice',choices=['mean','mode','median','absolute_median','trimmed','kde_mode'],default='mode')
 parser.add_option("--minnpv", help="min NPV", type=int, default=5)
 parser.add_option("--maxnpv", help="max NPV", type=int, default=30)
 parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
@@ -467,7 +467,7 @@ def fitres(params=[]):
         efficiencies.append(efficiency)
 
       weightdata = weightdata/sum(weightdata)
-      if options.central == 'absolute_median' or options.central == 'mode':
+      if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         if not absolute: raise RuntimeError('In order to use absolute IQR, you have to have all truth jets and calculate efficiency. Use -e option.')
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(resdata,weightdata,options.central,eff=efficiency)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
@@ -516,10 +516,10 @@ def fitres(params=[]):
       sigmaR_errs.append(sigma_err)
 
       n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,histtype='stepfilled')
-      if options.central == 'absolute_median' or options.central == 'mode':
+      if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptdata,weightdata,options.central,eff=efficiency)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
-        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
         if lower_quantile>float('-inf'):
           plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
@@ -529,7 +529,7 @@ def fitres(params=[]):
         plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
       if options.central == 'median':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptdata,weightdata,options.central)
-        plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+        plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
         plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
         plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
@@ -625,7 +625,7 @@ def fitres(params=[]):
             #raise RuntimeError('Efficiency > 1. Check truth jets?')
             efficiency=1
         n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
-        if options.central == 'absolute_median' or options.central == 'mode':
+        if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
           (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
           if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
           plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
@@ -670,10 +670,10 @@ def fitres(params=[]):
         plt.close()
 
         n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
-        if options.central == 'absolute_median' or options.central == 'mode':
+        if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
           (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
           if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
-          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+          plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
           height = 0.607*max(n) #height at x=1*sigma in normal distribution
           if lower_quantile>float('-inf'):
             plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
@@ -683,7 +683,7 @@ def fitres(params=[]):
           plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
         if options.central == 'median':
           (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
-          plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
+          plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
           height = 0.607*max(n) #height at x=1*sigma in normal distribution
           plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
           plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
