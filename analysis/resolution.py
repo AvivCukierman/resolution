@@ -436,6 +436,7 @@ def fitres(params=[]):
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   if absolute: npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
+  #responses,recopts,trupts,weights
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
     avgtruept = []
@@ -457,7 +458,7 @@ def fitres(params=[]):
       weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
-      n,bins,patches = plt.hist(resdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+      n,bins,patches = plt.hist(resdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
       if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
         efficiency = sum(weightdata)/sum(all_weightdata)
@@ -500,6 +501,7 @@ def fitres(params=[]):
         plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(resdata,weightdata,options.central)
+        print mu,sigma,ptbin
         gfunc = norm
         y = gfunc.pdf(bins, mu, sigma)
         plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
@@ -515,7 +517,7 @@ def fitres(params=[]):
       sigmaRs.append(sigma)
       sigmaR_errs.append(sigma_err)
 
-      n,bins,patches = plt.hist(ptdata,normed=True,bins=50,weights=weightdata,histtype='stepfilled')
+      n,bins,patches = plt.hist(ptdata,normed=True,bins=100,weights=weightdata,histtype='stepfilled')
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptdata,weightdata,options.central,eff=efficiency)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
@@ -547,6 +549,7 @@ def fitres(params=[]):
         plt.plot(bins,y,'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptdata,weightdata,options.central)
+        print mu,sigma,ptbin
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
@@ -624,7 +627,7 @@ def fitres(params=[]):
           if efficiency>1:
             #raise RuntimeError('Efficiency > 1. Check truth jets?')
             efficiency=1
-        n,bins,patches = plt.hist(resestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+        n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
         if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
           (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
           if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
@@ -657,6 +660,7 @@ def fitres(params=[]):
           plt.plot(bins,y,'r--',linewidth=2)'''
         if options.central == 'trimmed':
           (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
+          print muR,sigmaR,ptbin
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           gfunc = norm
           y = gfunc.pdf( bins, muR, sigmaR)
@@ -669,7 +673,7 @@ def fitres(params=[]):
         plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
         plt.close()
 
-        n,bins,patches = plt.hist(ptestdata,normed=True,bins=50,weights=weightdata,facecolor='b',histtype='stepfilled')
+        n,bins,patches = plt.hist(ptestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
         if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
           (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
           if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
@@ -701,6 +705,7 @@ def fitres(params=[]):
           plt.plot(bins,y,'r--',linewidth=2)'''
         if options.central == 'trimmed':
           (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
+          print mu,sigma,ptbin
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           gfunc = norm
           y = gfunc.pdf( bins, mu, sigma)
