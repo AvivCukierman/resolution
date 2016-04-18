@@ -5,6 +5,39 @@ import numpy
 from numpy import linspace,array,mean,std,average,sqrt
 import pdb
 
+import ROOT as r
+def mode_est(x,w,nSigmaA,nSigmaB):
+  hist = r.TH1F("h1","h1",100,min(x),max(x))
+  for xx,ww in zip(x,w): hist.Fill(xx,ww)
+
+  mean = hist.GetMean()
+  sigma = hist.GetRMS()
+  max_val = hist.GetMaximum()
+
+  lowestX = 0
+  highestX = 0
+  for i in range(hist.GetNbinsX()):
+    if hist.GetBinContent(i+1) > max_val/10: highestX = hist.GetBinCenter(i+1)
+  for i in reversed(range(hist.GetNbinsX())):
+    if hist.GetBinContent(i+1) > max_val/10: lowestX = hist.GetBinCenter(i+1)
+
+  #gfit = r.TF1("Gaussian","gaus", mean - nSigmaB * sigma, mean + nSigmaA * sigma) # Create the fit function
+  #gfit.SetParameters(mean, sigma);
+  #hist.Fit(gfit,"RQ0"); # Fit histogram h
+
+  for nFit in range(2):
+    minRange = mean - nSigmaB * sigma
+    maxRange = mean + nSigmaA * sigma
+    if minRange < lowestX: minRange = lowestX
+    if maxRange > highestX: maxRange = highestX
+    gfit = r.TF1("Gaussian","gaus", minRange, maxRange) # Create the fit function
+    gfit.SetParLimits(1, minRange, maxRange)
+    hist.Fit(gfit,"RQ0") # Fit histogram h
+    mean=gfit.GetParameter(1)
+    sigma=gfit.GetParameter(2)
+
+  return mean,sigma,minRange,maxRange
+
 def distribution_values(data,weights,central,eff=1):
       weights=weights/sum(weights) #normalize
       # maximum likelihood estimates
@@ -36,34 +69,11 @@ def distribution_values(data,weights,central,eff=1):
       if central == 'mean':
         return mean,mean_err,std,std_err
       if central == 'trimmed' or central == 'mode' or central=='kde_mode':
-        n,bins = numpy.histogram(data,weights=weights,bins=50)
-        max_val = max(n) 
-        max_bin = numpy.argmax(n)
+        n,bins = numpy.histogram(data,weights=weights,bins=100)
+        newmean_est,newstd_est,lower_val,upper_val = mode_est(data,weights,1.75,1.75)
 
-        upper = max_bin
-        while(n[upper]>max_val/3.5 and bins[upper]<1.75*std+bins[max_bin] and upper<len(n)): upper+=1
-        lower = max_bin
-        while(n[lower]>max_val/3.5 and bins[lower]>-1.75*std+bins[max_bin] and lower>0): lower-=1
-
-        upper_val = bins[upper]
-        lower_val = bins[lower]
-        newdata = data[numpy.all([data>lower_val,data<upper_val],axis=0)]
-        newweights = data[numpy.all([data>lower_val,data<upper_val],axis=0)]
-        newweights=newweights/sum(newweights) #normalize
-
-        newmean_est = average(newdata,weights=newweights)
-        newvar_est = average((newdata-newmean_est)**2,weights=newweights)
-        newstd_est = sqrt(newvar_est)
-
-        rv = stats.truncnorm
-        for _ in range(2):
-          a = (lower_val-newmean_est)/(newstd_est)
-          b = (upper_val-newmean_est)/(newstd_est)
-          params = rv.fit(newdata,a,b,loc=newmean_est,scale=newstd_est,weights=newweights)
-
-          newmean_est = params[2]
-          newstd_est = params[3]
-
+        newweights = weights[numpy.all([data>lower_val,data<upper_val],axis=0)]
+        newweights/=sum(newweights)
         new_mean_err = newstd_est*sqrt(sum(newweights**2))
         new_var_err = newstd_est**2*sqrt(2*sum(newweights**2)) # from https://web.eecs.umich.edu/~fessler/papers/files/tr/stderr.pdf
         #var = sigma^2 -> var_err/var = 2*sigma_err/sigma
@@ -77,10 +87,10 @@ def distribution_values(data,weights,central,eff=1):
           kernel = gaussian_kde(data,weights=weights,bw_method=bw*2.0)
           bins = numpy.histogram(data,weights=weights,bins=50)[1]
           y = kernel(bins)
-          mode_est = bins[numpy.argmax(y)] 
+          kde_mode_est = bins[numpy.argmax(y)] 
 
           binsize = bins[1]-bins[0]
-          smallbins = numpy.linspace(mode_est-2*binsize,mode_est+2*binsize,400) 
+          smallbins = numpy.linspace(kde_mode_est-2*binsize,kde_mode_est+2*binsize,400) 
           mode = smallbins[numpy.argmax(kernel(smallbins))] 
           mu = mode
 
@@ -101,3 +111,7 @@ def distribution_values(data,weights,central,eff=1):
         sigma = (upper_quantile-mu)
         sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
         return mu,new_mean_err,sigma,sigma_err,upper_quantile,lower_quantile,err
+
+  
+  
+
