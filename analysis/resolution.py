@@ -504,7 +504,7 @@ def fitres(params=[]):
         plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(resdata,weightdata,options.central)
-        print mu,sigma,ptbin
+        #print mu,sigma,ptbin
         gfunc = norm
         y = gfunc.pdf(bins, mu, sigma)
         plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
@@ -552,7 +552,7 @@ def fitres(params=[]):
         plt.plot(bins,y,'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptdata,weightdata,options.central)
-        print mu,sigma,ptbin
+        #print mu,sigma,ptbin
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
@@ -663,7 +663,7 @@ def fitres(params=[]):
           plt.plot(bins,y,'r--',linewidth=2)'''
         if options.central == 'trimmed':
           (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
-          print muR,sigmaR,ptbin
+          #print muR,sigmaR,ptbin
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           gfunc = norm
           y = gfunc.pdf( bins, muR, sigmaR)
@@ -708,7 +708,7 @@ def fitres(params=[]):
           plt.plot(bins,y,'r--',linewidth=2)'''
         if options.central == 'trimmed':
           (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
-          print mu,sigma,ptbin
+          #print mu,sigma,ptbin
           newbins = bins[all([bins>lower,bins<upper],axis=0)]
           gfunc = norm
           y = gfunc.pdf( bins, mu, sigma)
