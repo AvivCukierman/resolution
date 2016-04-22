@@ -1,12 +1,12 @@
 #/bin/bash
 
 python resolution.py -i j0_jz1_EM \
--m absolute_median \
+-m mode \
 -e \
 --minnpv 5 \
---maxnpv 30 \
+--maxnpv 25 \
 --npvbin 5 \
---ptbin 2 \
+--ptbin 5 \
 --minpt 20 \
 --maxpt 60 \
 --inputDir ../../Voronoi_xAOD/LSF_EM_JZ1_all_jvoro5/fetch/data-outputTree/ \
