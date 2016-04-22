@@ -60,6 +60,8 @@ parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
 
 (options, args) = parser.parse_args()
 
+if options.central == 'kde_mode': raise RuntimeError('kde_mode option is deprecated currently. Use mode option.')
+
 if options.root and not os.path.exists(options.inputDir): raise OSError(options.inputDir +' does not exist. This is where the input Root files go.')
 if not options.root and not os.path.exists(options.submitDir): raise OSError(options.submitDir+' does not exist. This is where the input numpy files go.')
 if options.root and not os.path.exists(options.submitDir):
