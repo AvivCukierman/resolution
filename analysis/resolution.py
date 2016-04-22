@@ -101,7 +101,7 @@ def g1(x,a,b,c):
     ax = array(x)
     result = []
     for x in ax:
-      approx = (round(x,1),round(a,1),round(b,1),round(c,1))
+      approx = (round(x,2),round(a,2),round(b,2),round(c,2))
       if approx not in memoized:
         func = lambda y: approx[0]-g(y,a,b,c)
         if approx>=0: x0 = max([approx[0],10])
@@ -452,6 +452,7 @@ def fitres(params=[]):
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
+      #pdb.set_trace()
       resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
