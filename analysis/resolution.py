@@ -436,7 +436,9 @@ def fitres(params=[]):
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-  if absolute: npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  if absolute:
+    npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+    npv_efficiencies_err = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   #responses,recopts,trupts,weights
   for npvbin in xrange(1,len(npvedges)):
@@ -450,7 +452,9 @@ def fitres(params=[]):
     avgpt_errs = []
     sigmas = []
     sigma_errs = []
-    if absolute: efficiencies = [] 
+    if absolute:
+      efficiencies = [] 
+      efficiencies_err = [] 
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
@@ -465,10 +469,12 @@ def fitres(params=[]):
       if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
         efficiency = sum(weightdata)/sum(all_weightdata)
+        efficiency_err = sqrt(sum(weightdata**2))/sum(all_weightdata)
         if efficiency>1:
           #raise RuntimeError('Efficiency > 1. Check truth jets?')
           efficiency=1
         efficiencies.append(efficiency)
+        efficiencies_err.append(efficiency_err)
 
       weightdata = weightdata/sum(weightdata)
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
@@ -569,7 +575,16 @@ def fitres(params=[]):
       avgpt_errs.append(mu_err)
       sigma_errs.append(sigma_err)
 
-    if absolute: npv_efficiencies[npvedges[npvbin]] = efficiencies
+    if absolute:
+      npv_efficiencies[npvedges[npvbin]] = efficiencies
+      npv_efficiencies_err[npvedges[npvbin]] = efficiencies_err
+      plt.errorbar(avgtruept,efficiencies,color='g',marker='o',linestyle='',yerr=efficiencies_err)
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      plt.ylabel('Reconstruction Efficiency')
+      plt.xlim(0,options.maxpt+10)
+      plt.ylim(min(efficiencies)-0.1,1.0)
+      plt.savefig(options.plotDir+'/jetefficiency_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
 
     xp = linspace(5,150,75)
 
@@ -800,7 +815,7 @@ def fitres(params=[]):
     colors = colors*2
     linestyles+=['--']*6
   if len(labels)>12:
-    raise RuntimeError('NPV bins are too small. Make them bigger.')
+    raise RuntimeError('Too many NPV bins. Try increasing the size of the bins.')
 
   npv_keys = npv_sigmas.keys() 
   npv_keys.sort()
@@ -826,6 +841,18 @@ def fitres(params=[]):
   plt.legend(loc='upper left',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.central+'_'+identifier+'.png')
   plt.close()
+
+  if absolute:
+    for i,npv in enumerate(npv_keys):
+      plt.errorbar(avgtruept,npv_efficiencies[npv],color=colors[i],linestyle=linestyles[i],label=labels[i],yerr=npv_efficiencies_err[npv])
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('Reconstruction Efficiency')
+    lowlim = min([min(e) for e in npv_efficiencies.values()])
+    plt.ylim(lowlim-0.1,1.0)
+    plt.xlim(0,options.maxpt+10)
+    plt.legend(loc='upper left',frameon=False,numpoints=1)
+    plt.savefig(options.plotDir+'/jetefficiency_pttrue'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
 
   for i,ptbin in enumerate(ptedges):
     if i==0: continue
@@ -853,8 +880,22 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
+  if absolute:
+    for i,ptbin in enumerate(ptedges):
+      if i==0: continue
+      plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_efficiencies[n][i-1] for n in npv_keys],yerr=[npv_efficiencies_err[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+      plt.xlabel('NPV')
+      plt.ylabel('Reconstruction Efficiency')
+      lowlim = min(npv_efficiencies[n][i-1] for n in npv_keys)
+      plt.ylim(lowlim-0.1,1)
+      plt.xlim(options.minnpv,options.maxnpv)
+      plt.legend(loc='upper left',frameon=False,numpoints=1)
+      plt.savefig(options.plotDir+'/jetefficiency_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
 
-  if absolute: pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
+  if absolute:
+    pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(npv_efficiencies_err,open(options.submitDir+'/efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
