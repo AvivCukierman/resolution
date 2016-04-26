@@ -17,4 +17,5 @@ The arguments are:
 `plotDir` - The directory to store plots. If unspecified, the function does not store any plots.
 
 ## Calibrated_resolution
-This script provides an example of reading a histogram in from a Root file and converting it to a list of data/weights to use in `fithist`. For any function that uses median/IQR calculations (`median`,`mode`,`absolute_median`), the best performance is provided in the limit of infinitely small bin sizes. 
+This script provides an example of reading a histogram in from a Root file and converting it to a list of data/weights to use in `fithist`. For any function that uses median/IQR calculations (`median`,`mode`,`absolute_median`), the best performance is provided in the limit of infinitely small bin sizes.  
+The essential sample usage can be found in lines 
