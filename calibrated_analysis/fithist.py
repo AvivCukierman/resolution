@@ -20,19 +20,11 @@ try:
   set_style('ATLAS',mpl=True)
 except ImportError: print '== Not using ATLAS style (Can\'t import rootpy.) =='
 
-def fithist(hist,central,eff,plotDir=None):
+def fithist(data,weightdata,central,eff,plotDir=None):
   plotting = not (plotDir==None)
   if plotting and not os.path.exists(plotDir):
     print '== Making folder '+options.plotDir+' =='
     os.makedirs(options.plotDir)
-
-  data = []
-  weightdata = []
-  for i in range(hist.GetXaxis().GetNbins()):
-    data.append(hist.GetBinCenter(i))
-    weightdata.append(hist.GetBinContent(i)) #weight according to height
-  data = array(data)
-  weightdata = array(weightdata)
 
   if plotting: n,bins,patches = plt.hist(data,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
   weightdata = weightdata/sum(weightdata)
