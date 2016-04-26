@@ -48,6 +48,7 @@ def mode_est(x,w,nSigmaA,nSigmaB):
   return means,sigmas,minRange,maxRange
 
 def distribution_values(data,weights,central,eff=1):
+      if not len(data)==len(weights): raise RuntimeError('Lengths of data vector and weight vector have to be the same')
       weights=weights/sum(weights) #normalize
       # maximum likelihood estimates
       mean = average(data,weights=weights)
