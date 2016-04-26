@@ -84,6 +84,7 @@ def plot_sigma_npv(collections_list):
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.pdf')
     plt.close()
 
     highlim = float('-inf')
@@ -123,6 +124,7 @@ def plot_sigma_npv(collections_list):
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.pdf')
     plt.close()
 
 def plot_sigma_pt(collections_list):
@@ -172,6 +174,7 @@ def plot_sigma_pt(collections_list):
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigma_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.png')
+    plt.savefig(options.plotDir+'/jetsigma_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.pdf')
     plt.close()
 
   highlim = {npv:float('-inf') for npv in npv_keys}
@@ -212,8 +215,9 @@ def plot_sigma_pt(collections_list):
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetsigmaR_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.png')
+    plt.savefig(options.plotDir+'/jetsigmaR_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.pdf')
     plt.close()
 
 collections_list = readCollections()
-#plot_sigma_npv(collections_list)
+plot_sigma_npv(collections_list)
 plot_sigma_pt(collections_list)
