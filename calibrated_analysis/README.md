@@ -1,9 +1,10 @@
 # Calibrated Analysis
 This directory provides a way to find the central values and resolution of a set of calibrated data (e.g. response in a given bin of truth pT).
 
-Three files are provided:
+Three files are provided:  
 `fithist.py`: A package for calculating the central value and resolution of a set of data and weights.  
-`calibrated_resolution.py`: A sample python script for reading in a Root histogram from file and converting it to a list of data/weights.   `sample_script.sh`: A sample bash script for running `calibrated_resolution`.
+`calibrated_resolution.py`: A sample python script for reading in a Root histogram from file and converting it to a list of data/weights.  
+`sample_script.sh`: A sample bash script for running `calibrated_resolution`.
 
 ## Fithist
 There is one provided function in the package, `fithist(data,weightdata,central,eff=eff,plotDir=None)`.
