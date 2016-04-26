@@ -18,4 +18,4 @@ The arguments are:
 
 ## Calibrated_resolution
 This script provides an example of reading a histogram in from a Root file and converting it to a list of data/weights to use in `fithist`. For any function that uses median/IQR calculations (`median`,`mode`,`absolute_median`), the best performance is provided in the limit of infinitely small bin sizes.  
-The essential sample usage can be found in lines 
+The essential sample usage can be found [here](https://github.com/AvivCukierman/resolution/blob/master/calibrated_analysis/calibrated_resolution.py#L42-L44). The central value, resolution, and associated errors can be stored however the user wishes (here they're stored in a json file).
