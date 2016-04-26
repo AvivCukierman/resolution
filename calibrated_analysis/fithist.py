@@ -11,20 +11,20 @@ rc('text', usetex=True)
 #plt.style.use('atlas')
 import matplotlib.mlab as mlab
 
-try:
-  from rootpy.plotting.style import set_style, get_style
-  print '== Using ATLAS style =='
-  atlas = get_style('ATLAS')
-  atlas.SetPalette(51)
-  set_style(atlas)
-  set_style('ATLAS',mpl=True)
-except ImportError: print '== Not using ATLAS style (Can\'t import rootpy.) =='
-
-def fithist(data,weightdata,central,eff,plotDir=None):
+def fithist(data,weightdata,central,eff=eff,plotDir=None):
   plotting = not (plotDir==None)
   if plotting and not os.path.exists(plotDir):
     print '== Making folder '+options.plotDir+' =='
     os.makedirs(options.plotDir)
+  if plotting:
+    try:
+      from rootpy.plotting.style import set_style, get_style
+      print '== Using ATLAS style =='
+      atlas = get_style('ATLAS')
+      atlas.SetPalette(51)
+      set_style(atlas)
+      set_style('ATLAS',mpl=True)
+    except ImportError: print '== Not using ATLAS style (Can\'t import rootpy.) =='
 
   if plotting: n,bins,patches = plt.hist(data,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
   weightdata = weightdata/sum(weightdata)

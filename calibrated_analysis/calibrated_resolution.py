@@ -13,7 +13,7 @@ parser.add_option("--plotDir", help="Directory containing plots",type=str, defau
 # Root configuration
 ## Reconstructed jets and matched truth jets
 parser.add_option("--hist", help="name of histogram in Root file",type=str, default="j0pt")
-parser.add_option("--eff", help="efficiency of jet collection",type=float, default=-1)
+parser.add_option("--eff", help="efficiency of jet collection",type=float, default=1)
 parser.add_option("-m","--central",help="Choice of notion of central tendency/resolution (mean, mode, median, absolute_median, or trimmed)",type='choice',choices=['mean','mode','median','absolute_median','trimmed'],default='mode')
 
 (options, args) = parser.parse_args()
@@ -40,7 +40,7 @@ data = array(data)
 weightdata = array(weightdata)
 
 from fithist import fithist
-(mu,mu_err,sigma,sigma_err) = fithist(data,weightdata,options.central,options.eff,plotDir=options.plotDir)
+(mu,mu_err,sigma,sigma_err) = fithist(data,weightdata,options.central,eff=options.eff,plotDir=options.plotDir)
 print mu,mu_err,sigma,sigma_err
 
 storedict = {'mu':mu,'mu_err':mu_err,'sigma':sigma,'sigma_err':sigma_err}
