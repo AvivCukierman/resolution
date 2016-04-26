@@ -1,4 +1,5 @@
 import os
+from numpy import array
 from optparse import OptionParser
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
@@ -30,8 +31,16 @@ def readRoot(root_file):
 root_file = r.TFile(options.inputFile)
 hist = readRoot(root_file)
 
+data = []
+weightdata = []
+for i in range(hist.GetXaxis().GetNbins()):
+  data.append(hist.GetBinCenter(i))
+  weightdata.append(hist.GetBinContent(i)) #weight according to height
+data = array(data)
+weightdata = array(weightdata)
+
 from fithist import fithist
-(mu,mu_err,sigma,sigma_err) = fithist(hist,options.central,options.eff,plotDir=options.plotDir)
+(mu,mu_err,sigma,sigma_err) = fithist(data,weightdata,options.central,options.eff,plotDir=options.plotDir)
 print mu,mu_err,sigma,sigma_err
 
 storedict = {'mu':mu,'mu_err':mu_err,'sigma':sigma,'sigma_err':sigma_err}
