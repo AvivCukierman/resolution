@@ -79,6 +79,7 @@ def plot_eff_npv(collections_list):
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
     plt.savefig(options.plotDir+'/jetefficiency_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.png')
+    plt.savefig(options.plotDir+'/jetefficiency_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.collections+'.pdf')
     plt.close()
 
 def plot_eff_pt(collections_list):
