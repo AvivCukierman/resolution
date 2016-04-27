@@ -148,7 +148,7 @@ def plot_sigma_pt(collections_list):
       plt.figure(i)
       plt.errorbar(avgpt,npv_sigmas[npv],yerr=npv_sigma_errs[npv],color=c['color'],linestyle=c['ls'],label=c['label'])
       highlim[npv] = max(highlim[npv],max(npv_sigmas[npv]))
-      lowlim[npv] = min(highlim[npv],min(npv_sigmas[npv]))
+      lowlim[npv] = min(lowlim[npv],min(npv_sigmas[npv]))
   #ATLAS style
   for i,npv in enumerate(npv_keys):
     plt.figure(i)
@@ -189,7 +189,7 @@ def plot_sigma_pt(collections_list):
       plt.figure(i)
       plt.errorbar(avgpt,npv_sigmas[npv],yerr=npv_sigma_errs[npv],color=c['color'],linestyle=c['ls'],label=c['label'])
       highlim[npv] = max(highlim[npv],max(npv_sigmas[npv]))
-      lowlim[npv] = min(highlim[npv],min(npv_sigmas[npv]))
+      lowlim[npv] = min(lowlim[npv],min(npv_sigmas[npv]))
   #ATLAS style
   for i,npv in enumerate(npv_keys):
     plt.figure(i)
