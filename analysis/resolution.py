@@ -9,7 +9,7 @@ from operator import sub
 from optparse import OptionParser
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
-try:
+'''try:
   from rootpy.plotting.style import set_style, get_style
   print '== Using ATLAS style =='
   atlas = get_style('ATLAS')
@@ -17,6 +17,7 @@ try:
   set_style(atlas)
   set_style('ATLAS',mpl=True)
 except ImportError: print '== Not using ATLAS style (Can\'t import rootpy.) =='
+'''
 
 parser = OptionParser()
 
@@ -439,6 +440,8 @@ def fitres(params=[]):
   if absolute:
     npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_err = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+    npv_efficiencies_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+    npv_efficiencies_err_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   #responses,recopts,trupts,weights
   for npvbin in xrange(1,len(npvedges)):
@@ -632,6 +635,9 @@ def fitres(params=[]):
       calmu_errs = []
       calsigmas = []
       calsigma_errs = []
+      if absolute:
+        efficiencies_fom = []
+        efficiency_errs_fom = []
       for ptbin in xrange(1,len(ptedges)): 
         ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
@@ -645,6 +651,8 @@ def fitres(params=[]):
           if efficiency>1:
             #raise RuntimeError('Efficiency > 1. Check truth jets?')
             efficiency=1
+          efficiency_fom = sum(weightdata[ptestdata>20])/sum(all_weightdata) #FoM: efficiency on all truth jets if cutting at 20 GeV on reco
+          efficiency_err_fom = sqrt(sum(weightdata[ptestdata>20]**2))/sum(all_weightdata)
         n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
         if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
           (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
@@ -744,6 +752,9 @@ def fitres(params=[]):
         calmu_errs.append(mu_err)
         calsigmas.append(sigma)
         calsigma_errs.append(sigma_err)
+        if absolute:
+          efficiencies_fom.append(efficiency_fom)
+          efficiency_errs_fom.append(efficiency_err_fom)
 
       estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
       plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
@@ -772,6 +783,17 @@ def fitres(params=[]):
       plt.ylim(.90,1.1)
       plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
+
+      if absolute:
+        plt.errorbar(avgtruept,efficiencies_fom,color='g',marker='o',linestyle='',yerr=efficiency_errs_fom)
+        plt.xlabel('$p_T^{true}$ [GeV]')
+        plt.ylabel('Efficiency ($p_T^{reco,cal}>$20 GeV)')
+        plt.xlim(0,options.maxpt+10)
+        plt.ylim(.50,1.1)
+        plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+        npv_efficiencies_fom[npvedges[npvbin]] = efficiencies_fom
+        npv_efficiencies_err_fom[npvedges[npvbin]] = efficiency_errs_fom
 
 
     if not options.doEst:
@@ -854,6 +876,17 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetefficiency_pttrue'+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
+    for i,npv in enumerate(npv_keys):
+      plt.errorbar(avgtruept,npv_efficiencies_fom[npv],color=colors[i],linestyle=linestyles[i],label=labels[i],yerr=npv_efficiencies_err_fom[npv])
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
+    lowlim = min([min(e) for e in npv_efficiencies_fom.values()])
+    plt.ylim(lowlim-0.1,1.0)
+    plt.xlim(0,options.maxpt+10)
+    plt.legend(loc='upper left',frameon=False,numpoints=1)
+    plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
   for i,ptbin in enumerate(ptedges):
     if i==0: continue
     plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_sigmas[n][i-1] for n in npv_keys],yerr=[npv_sigma_errs[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
@@ -893,9 +926,23 @@ def fitres(params=[]):
       plt.savefig(options.plotDir+'/jetefficiency_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
 
+    for i,ptbin in enumerate(ptedges):
+      if i==0: continue
+      plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_efficiencies_fom[n][i-1] for n in npv_keys],yerr=[npv_efficiencies_err_fom[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+      plt.xlabel('NPV')
+      plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
+      lowlim = min(npv_efficiencies[n][i-1] for n in npv_keys)
+      plt.ylim(lowlim-0.1,1)
+      plt.xlim(options.minnpv,options.maxnpv)
+      plt.legend(loc='upper left',frameon=False,numpoints=1)
+      plt.savefig(options.plotDir+'/jetefficiency_fom_NPV_pt'+str(ptedges[i-1])+str(ptedges[i])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
+
   if absolute:
     pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(npv_efficiencies_err,open(options.submitDir+'/efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(npv_efficiencies_fom,open(options.submitDir+'/efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(npv_efficiencies_err_fom,open(options.submitDir+'/efficiency_errs_fom'+options.central+'_'+identifier+'.p','wb'))
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
