@@ -26,6 +26,7 @@ parser = OptionParser()
 parser.add_option("--submitDir", help="Directory containing output files",type=str, default="../output_absolute")
 parser.add_option("--plotDir", help="Directory containing plots",type=str, default="../plots")
 parser.add_option("--collections", help="file containing jet collection identifiers and labels",type=str, default="collections")
+parser.add_option("--plotlabel", help="label going on every plot (only if using ATLAS style)",type=str, default='$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{<\mu>=20}$')
 
 (options, args) = parser.parse_args()
 
@@ -68,13 +69,27 @@ def plot_eff_npv(collections_list):
       plt.errorbar(array(npv_keys)-0.5*npvbin,[npv_effs[n][i-1] for n in npv_keys],yerr=[npv_eff_errs[n][i-1] for n in npv_keys],color=c['color'],linestyle=c['ls'],label=c['label'])
       lowlim = min(lowlim,min([npv_effs[n][i-1] for n in npv_keys]))
 
-    plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
-    plt.xlabel('NPV')
-    plt.ylabel('Reconstruction Efficiency')
     plt.ylim(lowlim-0.1,1.1)
     plt.xlim(min(npv_keys)-npvbin,max(npv_keys))
     # legend without errors: 
     axes = plt.axes()
+    if atlas_style:
+      axes.xaxis.set_minor_locator(AutoMinorLocator())
+      axes.yaxis.set_minor_locator(AutoMinorLocator())
+      plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
+      plt.ylabel('Reconstruction Efficiency', position=(0., 1.), va='top', ha='right')
+      axes.xaxis.set_label_coords(1., -0.15)
+      axes.yaxis.set_label_coords(-0.15, 1.)
+      axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+      axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+    else:
+      plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
+      plt.xlabel('NPV')
+      plt.ylabel('Reconstruction Efficiency')
+    # legend without errors: 
+    handles, labels = axes.get_legend_handles_labels()
+    handles = [h[0] for h in handles]
     handles, labels = axes.get_legend_handles_labels()
     handles = [h[0] for h in handles]
     plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
@@ -115,7 +130,7 @@ def plot_eff_pt(collections_list):
       axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
       axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-      axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n'+str(npv-npvbin)+' < NPV < '+str(npv), transform=axes.transAxes,linespacing=1.5,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(npv-npvbin)+' < NPV < '+str(npv), transform=axes.transAxes,linespacing=1.5,size='larger')
     else:
       plt.errorbar([0],[0],linestyle=' ',label=str(npv-npvbin)+' < NPV < '+str(npv))
       plt.xlabel('$p_T^{true}$ [GeV]')
@@ -132,5 +147,5 @@ def plot_eff_pt(collections_list):
 
 
 collections_list = readCollections()
-#plot_eff_npv(collections_list)
+plot_eff_npv(collections_list)
 plot_eff_pt(collections_list)
