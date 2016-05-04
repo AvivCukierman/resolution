@@ -163,7 +163,7 @@ def plot_sigma_pt(collections_list):
       axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
       axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(npv-npvbin)+' < NPV < '+str(npv), transform=axes.transAxes,linespacing=1.5,size='larger')
     else:
       plt.errorbar([0],[0],linestyle=' ',label=str(npv-npvbin)+' < NPV < '+str(npv))
       plt.xlabel('$p_T^{true}$ [GeV]')
@@ -204,7 +204,7 @@ def plot_sigma_pt(collections_list):
       axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
       axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+str(npv-npvbin)+' < NPV < '+str(npv), transform=axes.transAxes,linespacing=1.5,size='larger')
     else:
       plt.errorbar([0],[0],linestyle=' ',label=str(npv-npvbin)+' < NPV < '+str(npv))
       plt.xlabel('$p_T^{true}$ [GeV]')
