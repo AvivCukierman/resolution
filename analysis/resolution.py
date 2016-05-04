@@ -931,7 +931,7 @@ def fitres(params=[]):
       plt.errorbar(array(npv_keys)-0.5*options.npvbin,[npv_efficiencies_fom[n][i-1] for n in npv_keys],yerr=[npv_efficiencies_err_fom[n][i-1] for n in npv_keys],color='b',linestyle='-',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
       plt.xlabel('NPV')
       plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
-      lowlim = min(npv_efficiencies[n][i-1] for n in npv_keys)
+      lowlim = min(npv_efficiencies_fom[n][i-1] for n in npv_keys)
       plt.ylim(lowlim-0.1,1)
       plt.xlim(options.minnpv,options.maxnpv)
       plt.legend(loc='upper left',frameon=False,numpoints=1)
