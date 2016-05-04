@@ -62,6 +62,7 @@ parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
 (options, args) = parser.parse_args()
 
 if options.central == 'kde_mode': raise RuntimeError('kde_mode option is deprecated currently. Use mode option.')
+if options.doEst: raise RuntimeError('doEst is currently deprecated. Last version that worked with doEst was v1.0.')
 
 if options.root and not os.path.exists(options.inputDir): raise OSError(options.inputDir +' does not exist. This is where the input Root files go.')
 if not options.root and not os.path.exists(options.submitDir): raise OSError(options.submitDir+' does not exist. This is where the input numpy files go.')
@@ -416,7 +417,7 @@ def fitres(params=[]):
   npvs = npvs[cuts]
   weights = weights[cuts]
 
-  #incl_ptests = recopts #replace recopts with estpts as they come up (only within given NPV and pT ranges)
+  incl_ptests = recopts #replace recopts with estpts as they come up (only within given NPV and pT ranges)
 
   ptbins = digitize(truepts,ptedges)
 
@@ -440,21 +441,11 @@ def fitres(params=[]):
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
-  incl_sigmas = []
-  incl_sigma_errs = []
-  incl_sigmaRs = []
-  incl_sigmaR_errs = []
-
   if absolute:
     npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_err = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_err_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
-
-    incl_efficiencies = []
-    incl_efficiencies_err = []
-    incl_efficiencies_fom = []
-    incl_efficiencies_err_fom = []
 
   #responses,recopts,trupts,weights
   for npvbin in xrange(1,len(npvedges)):
@@ -474,11 +465,11 @@ def fitres(params=[]):
 
     for ptbin in xrange(1,len(ptedges)): 
       #print '>> >> Processing pT bin '+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV'
-      #pdb.set_trace()
       resdata = responses[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
       n,bins,patches = plt.hist(resdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
@@ -492,7 +483,6 @@ def fitres(params=[]):
         efficiencies.append(efficiency)
         efficiencies_err.append(efficiency_err)
 
-      weightdata = weightdata/sum(weightdata)
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         if not absolute: raise RuntimeError('In order to use absolute IQR, you have to have all truth jets and calculate efficiency. Use -e option.')
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(resdata,weightdata,options.central,eff=efficiency)
@@ -639,183 +629,176 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetdf_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
-    if not options.doEst:
-      calmuRs = []
-      calmuR_errs = []
-      calsigmaRs = []
-      calsigmaR_errs = []
-      calmus = []
-      calmu_errs = []
-      calsigmas = []
-      calsigma_errs = []
-      if absolute:
-        efficiencies_fom = []
-        efficiency_errs_fom = []
-      for ptbin in xrange(1,len(ptedges)): 
-        ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-        ptestdata = g1(ptdata,*Ropt)
-        #incl_ptests[all([ptbins==ptbin,npvbins==npvbin],axis=0)] = ptestdata
-        resestdata = ptestdata/trueptdata
-
-        if absolute:
-          all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
-          efficiency = sum(weightdata)/sum(all_weightdata)
-          if efficiency>1:
-            #raise RuntimeError('Efficiency > 1. Check truth jets?')
-            efficiency=1
-          efficiency_fom = sum(weightdata[ptestdata>20])/sum(all_weightdata) #FoM: efficiency on all truth jets if cutting at 20 GeV on reco
-          efficiency_err_fom = sqrt(sum(weightdata[ptestdata>20]**2))/sum(all_weightdata)
-        n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
-        if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
-          (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
-          if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
-          plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
-          height = 0.607*max(n) #height at x=1*sigma in normal distribution
-          if lower_quantile>float('-inf'):
-            plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
-            plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-          else:
-            plt.plot((muR,upper_quantile),(height,height),'r--',linewidth=2)
-          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-        weightdata = weightdata/sum(weightdata)
-        if options.central == 'median':
-          (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
-          plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
-          height = 0.607*max(n) #height at x=1*sigma in normal distribution
-          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
-          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-        if options.central == 'mean':
-          (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
-          gfunc = norm
-          y = gfunc.pdf( bins, muR, sigmaR)
-          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
-          l = plt.plot(bins, y, 'r--', linewidth=2)
-        '''if options.central == 'mode':
-          (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
-          y = kernel(bins)
-          plt.plot((muR,muR),(0,kernel(muR)),'r--',linewidth=2)
-          plt.plot(bins,y,'r--',linewidth=2)'''
-        if options.central == 'trimmed':
-          (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
-          #print muR,sigmaR,ptbin
-          newbins = bins[all([bins>lower,bins<upper],axis=0)]
-          gfunc = norm
-          y = gfunc.pdf( bins, muR, sigmaR)
-          plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
-          newbins = bins[all([bins>lower,bins<upper],axis=0)]
-          newy = y[all([bins>lower,bins<upper],axis=0)]
-          l = plt.plot(newbins, newy, 'r--', linewidth=2)
-        plt.xlabel('$p_T^{reco}/p_T^{true}$')
-        plt.ylabel('a.u.')
-        plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-        plt.close()
-
-        n,bins,patches = plt.hist(ptestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
-        if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
-          (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
-          if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
-          plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
-          height = 0.607*max(n) #height at x=1*sigma in normal distribution
-          if lower_quantile>float('-inf'):
-            plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
-            plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-          else:
-            plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
-          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-        if options.central == 'median':
-          (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
-          plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
-          height = 0.607*max(n) #height at x=1*sigma in normal distribution
-          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
-          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-          plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
-        if options.central == 'mean':
-          (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
-          gfunc = norm
-          y = gfunc.pdf( bins, mu, sigma)
-          plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
-          l = plt.plot(bins, y, 'r--', linewidth=2)
-        '''if options.central == 'mode':
-          (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
-          y = kernel(bins)
-          plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
-          plt.plot(bins,y,'r--',linewidth=2)'''
-        if options.central == 'trimmed':
-          (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
-          #print mu,sigma,ptbin
-          newbins = bins[all([bins>lower,bins<upper],axis=0)]
-          gfunc = norm
-          y = gfunc.pdf( bins, mu, sigma)
-          plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
-          newbins = bins[all([bins>lower,bins<upper],axis=0)]
-          newy = y[all([bins>lower,bins<upper],axis=0)]
-          l = plt.plot(newbins, newy, 'r--', linewidth=2)
-        plt.xlabel('$p_T^{reco}$')
-        plt.ylabel('a.u.')
-        plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-        plt.close()
-
-        calmuRs.append(muR)
-        calmuR_errs.append(muR_err)
-        calsigmaRs.append(sigmaR)
-        calsigmaR_errs.append(sigmaR_err)
-        calmus.append(mu)
-        calmu_errs.append(mu_err)
-        calsigmas.append(sigma)
-        calsigma_errs.append(sigma_err)
-        if absolute:
-          efficiencies_fom.append(efficiency_fom)
-          efficiency_errs_fom.append(efficiency_err_fom)
-
-      estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
-      plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
-      plt.errorbar(avgtruept,calmus,color='g',marker='o',linestyle='',yerr=calmu_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}$ [GeV]')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(0,options.maxpt+10)
-      plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-      plt.close()
-      
-      closure = estpts/truepts
-      plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.')
-      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(0,2)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-      plt.close()
-
-      plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
-      plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
-      plt.xlim(0,options.maxpt+10)
-      plt.ylim(.90,1.1)
-      plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-      plt.close()
+    calmuRs = []
+    calmuR_errs = []
+    calsigmaRs = []
+    calsigmaR_errs = []
+    calmus = []
+    calmu_errs = []
+    calsigmas = []
+    calsigma_errs = []
+    if absolute:
+      efficiencies_fom = []
+      efficiency_errs_fom = []
+    for ptbin in xrange(1,len(ptedges)): 
+      ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      ptestdata = g1(ptdata,*Ropt)
+      incl_ptests[all([ptbins==ptbin,npvbins==npvbin],axis=0)] = ptestdata
+      resestdata = ptestdata/trueptdata
 
       if absolute:
-        plt.errorbar(avgtruept,efficiencies_fom,color='g',marker='o',linestyle='',yerr=efficiency_errs_fom)
-        plt.xlabel('$p_T^{true}$ [GeV]')
-        plt.ylabel('Efficiency ($p_T^{reco,cal}>$20 GeV)')
-        plt.xlim(0,options.maxpt+10)
-        plt.ylim(.50,1.1)
-        plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
-        plt.close()
-        npv_efficiencies_fom[npvedges[npvbin]] = efficiencies_fom
-        npv_efficiencies_err_fom[npvedges[npvbin]] = efficiency_errs_fom
+        all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
+        if efficiency>1:
+          #raise RuntimeError('Efficiency > 1. Check truth jets?')
+          efficiency=1
+        efficiency_fom = sum(weightdata[ptestdata>20])/sum(all_weightdata) #FoM: efficiency on all truth jets if cutting at 20 GeV on reco
+        efficiency_err_fom = sqrt(sum(weightdata[ptestdata>20]**2))/sum(all_weightdata)
+      n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+      if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
+        (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
+        if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
+        plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        if lower_quantile>float('-inf'):
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        else:
+          plt.plot((muR,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'median':
+        (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
+        plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'mean':
+        (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
+        gfunc = norm
+        y = gfunc.pdf( bins, muR, sigmaR)
+        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+        l = plt.plot(bins, y, 'r--', linewidth=2)
+      '''if options.central == 'mode':
+        (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
+        y = kernel(bins)
+        plt.plot((muR,muR),(0,kernel(muR)),'r--',linewidth=2)
+        plt.plot(bins,y,'r--',linewidth=2)'''
+      if options.central == 'trimmed':
+        (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
+        #print muR,sigmaR,ptbin
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        gfunc = norm
+        y = gfunc.pdf( bins, muR, sigmaR)
+        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        newy = y[all([bins>lower,bins<upper],axis=0)]
+        l = plt.plot(newbins, newy, 'r--', linewidth=2)
+      plt.xlabel('$p_T^{reco}/p_T^{true}$')
+      plt.ylabel('a.u.')
+      plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
+
+      n,bins,patches = plt.hist(ptestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+      if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
+        if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
+        plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        if lower_quantile>float('-inf'):
+          plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+          plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        else:
+          plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'median':
+        (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
+        plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        height = 0.607*max(n) #height at x=1*sigma in normal distribution
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+        plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      if options.central == 'mean':
+        (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
+        gfunc = norm
+        y = gfunc.pdf( bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        l = plt.plot(bins, y, 'r--', linewidth=2)
+      '''if options.central == 'mode':
+        (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
+        y = kernel(bins)
+        plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
+        plt.plot(bins,y,'r--',linewidth=2)'''
+      if options.central == 'trimmed':
+        (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
+        #print mu,sigma,ptbin
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        gfunc = norm
+        y = gfunc.pdf( bins, mu, sigma)
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        newbins = bins[all([bins>lower,bins<upper],axis=0)]
+        newy = y[all([bins>lower,bins<upper],axis=0)]
+        l = plt.plot(newbins, newy, 'r--', linewidth=2)
+      plt.xlabel('$p_T^{reco}$')
+      plt.ylabel('a.u.')
+      plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
+
+      calmuRs.append(muR)
+      calmuR_errs.append(muR_err)
+      calsigmaRs.append(sigmaR)
+      calsigmaR_errs.append(sigmaR_err)
+      calmus.append(mu)
+      calmu_errs.append(mu_err)
+      calsigmas.append(sigma)
+      calsigma_errs.append(sigma_err)
+      if absolute:
+        efficiencies_fom.append(efficiency_fom)
+        efficiency_errs_fom.append(efficiency_err_fom)
+
+    estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
+    plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
+    plt.errorbar(avgtruept,calmus,color='g',marker='o',linestyle='',yerr=calmu_errs)
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('$p_T^{reco,cal}$ [GeV]')
+    plt.xlim(0,options.maxpt+10)
+    plt.ylim(0,options.maxpt+10)
+    plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+    
+    closure = estpts/truepts
+    plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.')
+    plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+    plt.xlim(0,options.maxpt+10)
+    plt.ylim(0,2)
+    plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+    plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+    plt.xlim(0,options.maxpt+10)
+    plt.ylim(.90,1.1)
+    plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+    if absolute:
+      plt.errorbar(avgtruept,efficiencies_fom,color='g',marker='o',linestyle='',yerr=efficiency_errs_fom)
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      plt.ylabel('Efficiency ($p_T^{reco,cal}>$20 GeV)')
+      plt.xlim(0,options.maxpt+10)
+      plt.ylim(.50,1.1)
+      plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
+      npv_efficiencies_fom[npvedges[npvbin]] = efficiencies_fom
+      npv_efficiencies_err_fom[npvedges[npvbin]] = efficiency_errs_fom
 
 
-    if not options.doEst:
-      sigma_calculation = calsigmas
-      sigma_err_calculation = calsigma_errs
-    else:
-      sigma_calculation = array(sigmas)/dg(avgtruept,*Ropt)
-      sigma_err_calculation = array(sigma_errs)/dg(avgtruept,*Ropt)
+    sigma_calculation = calsigmas
+    sigma_err_calculation = calsigma_errs
     npv_sigmas[npvedges[npvbin]] = sigma_calculation
     npv_sigma_errs[npvedges[npvbin]] = sigma_err_calculation
     plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
@@ -827,12 +810,8 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
     
-    if not options.doEst:
-      sigma_calculation = calsigmaRs 
-      sigma_err_calculation = calsigmaR_errs
-    else:
-      sigma_calculation = array(sigmaRs)/dg(avgtruept,*Ropt)
-      sigma_err_calculation = array(sigmaR_errs)/dg(avgtruept,*Ropt) 
+    sigma_calculation = calsigmaRs 
+    sigma_err_calculation = calsigmaR_errs
     npv_sigmaRs[npvedges[npvbin]] = sigma_calculation
     npv_sigmaR_errs[npvedges[npvbin]] = sigma_err_calculation
     plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin]))
@@ -957,6 +936,218 @@ def fitres(params=[]):
     pickle.dump(npv_efficiencies_err,open(options.submitDir+'/efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(npv_efficiencies_fom,open(options.submitDir+'/efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(npv_efficiencies_err_fom,open(options.submitDir+'/efficiency_errs_fom'+options.central+'_'+identifier+'.p','wb'))
+
+  #################
+  ### inclusive ###
+  #################
+  incl_sigmas = []
+  incl_sigma_errs = []
+  incl_sigmaRs = []
+  incl_sigmaR_errs = []
+  incl_calmus = []
+  incl_calmu_errs = []
+  incl_calmuRs = []
+  incl_calmuR_errs = []
+  if absolute:
+    incl_efficiencies = []
+    incl_efficiencies_err = []
+    incl_efficiencies_fom = []
+    incl_efficiencies_err_fom = []
+  for ptbin in xrange(1,len(ptedges)): 
+    ptestdata = incl_ptests[all([ptbins==ptbin,npvs>=options.minnpv,npvs<options.maxnpv],axis=0)]
+    trueptdata = truepts[all([ptbins==ptbin,npvs>=options.minnpv,npvs<options.maxnpv],axis=0)]
+    weightdata = weights[all([ptbins==ptbin,npvs>=options.minnpv,npvs<options.maxnpv],axis=0)]
+    resestdata = ptestdata/trueptdata
+
+    if absolute:
+      all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvs>=options.minnpv,all_npvs<options.maxnpv],axis=0)]
+      efficiency = sum(weightdata)/sum(all_weightdata)
+      if efficiency>1:
+        #raise RuntimeError('Efficiency > 1. Check truth jets?')
+        efficiency=1
+      efficiency_fom = sum(weightdata[ptestdata>20])/sum(all_weightdata) #FoM: efficiency on all truth jets if cutting at 20 GeV on reco
+      efficiency_err_fom = sqrt(sum(weightdata[ptestdata>20]**2))/sum(all_weightdata)
+    n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+    if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
+      (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
+      if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
+      plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+      height = 0.607*max(n) #height at x=1*sigma in normal distribution
+      if lower_quantile>float('-inf'):
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      else:
+        plt.plot((muR,upper_quantile),(height,height),'r--',linewidth=2)
+      plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+    if options.central == 'median':
+      (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile) = distribution_values(resestdata,weightdata,options.central)
+      plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
+      height = 0.607*max(n) #height at x=1*sigma in normal distribution
+      plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+      plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+    if options.central == 'mean':
+      (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
+      gfunc = norm
+      y = gfunc.pdf( bins, muR, sigmaR)
+      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+      l = plt.plot(bins, y, 'r--', linewidth=2)
+    '''if options.central == 'mode':
+      (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
+      y = kernel(bins)
+      plt.plot((muR,muR),(0,kernel(muR)),'r--',linewidth=2)
+      plt.plot(bins,y,'r--',linewidth=2)'''
+    if options.central == 'trimmed':
+      (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
+      #print muR,sigmaR,ptbin
+      newbins = bins[all([bins>lower,bins<upper],axis=0)]
+      gfunc = norm
+      y = gfunc.pdf( bins, muR, sigmaR)
+      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+      newbins = bins[all([bins>lower,bins<upper],axis=0)]
+      newy = y[all([bins>lower,bins<upper],axis=0)]
+      l = plt.plot(newbins, newy, 'r--', linewidth=2)
+    plt.xlabel('$p_T^{reco}/p_T^{true}$')
+    plt.ylabel('a.u.')
+    plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+    n,bins,patches = plt.hist(ptestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+    if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
+      (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(ptestdata,weightdata,options.central,eff=efficiency)
+      if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
+      plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+      height = 0.607*max(n) #height at x=1*sigma in normal distribution
+      if lower_quantile>float('-inf'):
+        plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+        plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      else:
+        plt.plot((mu,upper_quantile),(height,height),'r--',linewidth=2)
+      plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+    if options.central == 'median':
+      (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile) = distribution_values(ptestdata,weightdata,options.central)
+      plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+      height = 0.607*max(n) #height at x=1*sigma in normal distribution
+      plt.plot((lower_quantile,upper_quantile),(height,height),'r--',linewidth=2)
+      plt.plot((lower_quantile,lower_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+      plt.plot((upper_quantile,upper_quantile),(height-0.02,height+0.02),'r-',linewidth=2)
+    if options.central == 'mean':
+      (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
+      gfunc = norm
+      y = gfunc.pdf( bins, mu, sigma)
+      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+      l = plt.plot(bins, y, 'r--', linewidth=2)
+    '''if options.central == 'mode':
+      (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
+      y = kernel(bins)
+      plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)
+      plt.plot(bins,y,'r--',linewidth=2)'''
+    if options.central == 'trimmed':
+      (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(ptestdata,weightdata,options.central)
+      #print mu,sigma,ptbin
+      newbins = bins[all([bins>lower,bins<upper],axis=0)]
+      gfunc = norm
+      y = gfunc.pdf( bins, mu, sigma)
+      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+      newbins = bins[all([bins>lower,bins<upper],axis=0)]
+      newy = y[all([bins>lower,bins<upper],axis=0)]
+      l = plt.plot(newbins, newy, 'r--', linewidth=2)
+    plt.xlabel('$p_T^{reco}$')
+    plt.ylabel('a.u.')
+    plt.savefig(options.plotDir+'/f1bin%d'%ptbin+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+    incl_calmus.append(mu)
+    incl_calmu_errs.append(mu_err)
+    incl_calmuRs.append(muR)
+    incl_calmuR_errs.append(muR_err)
+    incl_sigmas.append(sigma)
+    incl_sigma_errs.append(sigma_err)
+    incl_sigmaRs.append(sigmaR)
+    incl_sigmaR_errs.append(sigmaR_err)
+    if absolute:
+      incl_efficiencies.append(efficiency)
+      incl_efficiencies_err.append(efficiency_err)
+      incl_efficiencies_fom.append(efficiency_fom)
+      incl_efficiencies_err_fom.append(efficiency_err_fom)
+
+  plt.plot(truepts[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],incl_ptests[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],'.')
+  plt.errorbar(avgtruept,incl_calmus,color='g',marker='o',linestyle='',yerr=incl_calmu_errs)
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$p_T^{reco,cal}$ [GeV]')
+  plt.xlim(0,options.maxpt+10)
+  plt.ylim(0,options.maxpt+10)
+  plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+  plt.close()
+  
+  closure = incl_ptests/truepts
+  plt.plot(truepts[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],closure[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],'.')
+  plt.errorbar(avgtruept,incl_calmuRs,color='g',marker='o',linestyle='',yerr=incl_calmuR_errs)
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+  plt.xlim(0,options.maxpt+10)
+  plt.ylim(0,2)
+  plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+  plt.close()
+
+  plt.errorbar(avgtruept,incl_calmuRs,color='g',marker='o',linestyle='',yerr=incl_calmuR_errs)
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+  plt.xlim(0,options.maxpt+10)
+  plt.ylim(.90,1.1)
+  plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+  plt.close()
+
+  if absolute:
+    plt.errorbar(avgtruept,incl_efficiencies,color='g',marker='o',linestyle='',yerr=incl_efficiencies_err)
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('Efficiency')
+    plt.xlim(0,options.maxpt+10)
+    plt.ylim(.90,1.1)
+    plt.savefig(options.plotDir+'/jetefficiency_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+    plt.errorbar(avgtruept,incl_efficiencies_fom,color='g',marker='o',linestyle='',yerr=incl_efficiencies_err_fom)
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('Efficiency ($p_T^{reco,cal}>$20 GeV)')
+    plt.xlim(0,options.maxpt+10)
+    plt.ylim(.50,1.1)
+    plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+    plt.close()
+
+  sigma_calculation = incl_sigmas
+  sigma_err_calculation = incl_sigma_errs
+  plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV Incl.')
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
+  plt.ylim(min(sigma_calculation)-1,max(sigma_calculation)+1)
+  plt.xlim(0,options.maxpt+10)
+  plt.legend(loc='upper left',frameon=False,numpoints=1)
+  plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+  plt.close()
+  
+  sigma_calculation = incl_sigmaRs 
+  sigma_err_calculation = incl_sigmaR_errs
+  plt.errorbar(avgtruept,sigma_calculation,yerr=sigma_err_calculation,color='b',linestyle='-',label='NPV Incl.')
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
+  plt.ylim(0,max(sigma_calculation)+0.1) 
+  plt.xlim(0,options.maxpt+10)
+  plt.legend(loc='upper right',frameon=False,numpoints=1)
+  plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
+  plt.close()
+
+  if absolute:
+    pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(incl_efficiencies_err,open(options.submitDir+'/incl_efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(incl_efficiencies_fom,open(options.submitDir+'/incl_efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(incl_efficiencies_err_fom,open(options.submitDir+'/incl_efficiency_errs_fom'+options.central+'_'+identifier+'.p','wb'))
+
+  pickle.dump(incl_sigmas,open(options.submitDir+'/incl_sigmas_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_sigma_errs,open(options.submitDir+'/incl_sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_sigmaRs,open(options.submitDir+'/incl_sigmaRs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_sigmaR_errs,open(options.submitDir+'/incl_sigmaR_errs_'+options.central+'_'+identifier+'.p','wb'))
+
 
   return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
 
