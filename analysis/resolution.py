@@ -115,6 +115,8 @@ def g1(x,a,b,c):
       result.append(memoized[approx])
     return array(result)
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('text', usetex=True)
@@ -403,7 +405,6 @@ def fitres(params=[]):
       else:
         print '== '+filename+' does not exist; no mindR cuts set =='
         all_mindr_cuts = [True]*len(all_truepts) 
-
 
 
   maxpt = options.maxpt
