@@ -416,6 +416,8 @@ def fitres(params=[]):
   npvs = npvs[cuts]
   weights = weights[cuts]
 
+  #incl_ptests = recopts #replace recopts with estpts as they come up (only within given NPV and pT ranges)
+
   ptbins = digitize(truepts,ptedges)
 
   maxnpv = options.maxnpv
@@ -437,11 +439,22 @@ def fitres(params=[]):
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+
+  incl_sigmas = []
+  incl_sigma_errs = []
+  incl_sigmaRs = []
+  incl_sigmaR_errs = []
+
   if absolute:
     npv_efficiencies = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_err = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
     npv_efficiencies_err_fom = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+
+    incl_efficiencies = []
+    incl_efficiencies_err = []
+    incl_efficiencies_fom = []
+    incl_efficiencies_err_fom = []
 
   #responses,recopts,trupts,weights
   for npvbin in xrange(1,len(npvedges)):
@@ -643,6 +656,7 @@ def fitres(params=[]):
         trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
         ptestdata = g1(ptdata,*Ropt)
+        #incl_ptests[all([ptbins==ptbin,npvbins==npvbin],axis=0)] = ptestdata
         resestdata = ptestdata/trueptdata
 
         if absolute:
