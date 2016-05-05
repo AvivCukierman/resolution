@@ -56,8 +56,8 @@ def plot_eff_npv(collections_list):
 
     for c in collections_list:
       identifier = c['identifier']
-      npv_effs = pickle.load(open(options.submitDir+'/'+'efficiencies_'+identifier+'.p','rb'))
-      npv_eff_errs = pickle.load(open(options.submitDir+'/'+'efficiency_errs_'+identifier+'.p','rb'))
+      npv_effs = pickle.load(open(options.submitDir+'/'+'efficiencies_fom_'+identifier+'.p','rb'))
+      npv_eff_errs = pickle.load(open(options.submitDir+'/'+'efficiency_errs_fom_'+identifier+'.p','rb'))
 
       npv_keys = npv_effs.keys() 
       npv_keys.sort()
@@ -110,8 +110,8 @@ def plot_eff_pt(collections_list):
   for c in collections_list:
     identifier = c['identifier']
     avgpt = pickle.load(open(options.submitDir+'/'+'avgpttrue_'+identifier+'.p','rb')) #assumes all algorithms have the same avg pT true
-    npv_effs = pickle.load(open(options.submitDir+'/'+'efficiencies_'+identifier+'.p','rb')) #assumes all algorithms have the same NPV range
-    npv_eff_errs = pickle.load(open(options.submitDir+'/'+'efficiency_errs_'+identifier+'.p','rb'))
+    npv_effs = pickle.load(open(options.submitDir+'/'+'efficiencies_fom_'+identifier+'.p','rb')) #assumes all algorithms have the same NPV range
+    npv_eff_errs = pickle.load(open(options.submitDir+'/'+'efficiency_errs_fom_'+identifier+'.p','rb'))
 
     for i,npv in enumerate(npv_keys):
       plt.figure(i)
