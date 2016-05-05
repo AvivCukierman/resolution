@@ -936,7 +936,7 @@ def fitres(params=[]):
     pickle.dump(npv_efficiencies,open(options.submitDir+'/efficiencies_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(npv_efficiencies_err,open(options.submitDir+'/efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(npv_efficiencies_fom,open(options.submitDir+'/efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
-    pickle.dump(npv_efficiencies_err_fom,open(options.submitDir+'/efficiency_errs_fom'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(npv_efficiencies_err_fom,open(options.submitDir+'/efficiency_errs_fom_'+options.central+'_'+identifier+'.p','wb'))
 
   #################
   ### inclusive ###
@@ -1142,7 +1142,7 @@ def fitres(params=[]):
     pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(incl_efficiencies_err,open(options.submitDir+'/incl_efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(incl_efficiencies_fom,open(options.submitDir+'/incl_efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
-    pickle.dump(incl_efficiencies_err_fom,open(options.submitDir+'/incl_efficiency_errs_fom'+options.central+'_'+identifier+'.p','wb'))
+    pickle.dump(incl_efficiencies_err_fom,open(options.submitDir+'/incl_efficiency_errs_fom_'+options.central+'_'+identifier+'.p','wb'))
 
   pickle.dump(incl_sigmas,open(options.submitDir+'/incl_sigmas_'+options.central+'_'+identifier+'.p','wb'))
   pickle.dump(incl_sigma_errs,open(options.submitDir+'/incl_sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
