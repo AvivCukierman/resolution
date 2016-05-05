@@ -152,7 +152,7 @@ def plot_eff_pt(collections_list):
     incl_effs = pickle.load(open(options.submitDir+'/'+'incl_efficiencies_fom_'+identifier+'.p','rb'))
     incl_eff_errs = pickle.load(open(options.submitDir+'/'+'incl_efficiency_errs_fom_'+identifier+'.p','rb'))
 
-    plt.errorbar(avgpt,npv_effs,yerr=incl_eff_errs,color=c['color'],linestyle=c['ls'],label=c['label'])
+    plt.errorbar(avgpt,incl_effs,yerr=incl_eff_errs,color=c['color'],linestyle=c['ls'],label=c['label'])
     lowlim = min(lowlim,min(incl_effs))
   #ATLAS style
   axes = plt.axes()
