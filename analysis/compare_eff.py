@@ -77,7 +77,7 @@ def plot_eff_npv(collections_list):
       axes.xaxis.set_minor_locator(AutoMinorLocator())
       axes.yaxis.set_minor_locator(AutoMinorLocator())
       plt.xlabel('NPV', position=(1., 0.), va='bottom', ha='right')
-      plt.ylabel('Reconstruction Efficiency', position=(0., 1.), va='top', ha='right')
+      plt.ylabel('Reconstruction Efficiency ($p_T^{reco} > 20$ GeV)', position=(0., 1.), va='top', ha='right')
       axes.xaxis.set_label_coords(1., -0.15)
       axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
@@ -86,7 +86,7 @@ def plot_eff_npv(collections_list):
     else:
       plt.errorbar([0],[0],linestyle=' ',label=str(ptedges[i-1])+' GeV $< p_T^{true} < $'+str(ptedges[i])+' GeV')
       plt.xlabel('NPV')
-      plt.ylabel('Reconstruction Efficiency')
+      plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
     # legend without errors: 
     handles, labels = axes.get_legend_handles_labels()
     handles = [h[0] for h in handles]
@@ -125,7 +125,7 @@ def plot_eff_pt(collections_list):
       axes.xaxis.set_minor_locator(AutoMinorLocator())
       axes.yaxis.set_minor_locator(AutoMinorLocator())
       plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
-      plt.ylabel('Reconstruction Efficiency', position=(0., 1.), va='top', ha='right')
+      plt.ylabel('Reconstruction Efficiency ($p_T^{reco} > 20$ GeV)', position=(0., 1.), va='top', ha='right')
       axes.xaxis.set_label_coords(1., -0.15)
       axes.yaxis.set_label_coords(-0.15, 1.)
       axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
@@ -134,7 +134,7 @@ def plot_eff_pt(collections_list):
     else:
       plt.errorbar([0],[0],linestyle=' ',label=str(npv-npvbin)+' < NPV < '+str(npv))
       plt.xlabel('$p_T^{true}$ [GeV]')
-      plt.ylabel('Reconstruction Efficiency')
+      plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
     plt.ylim(lowlim[npv]-0.1,1.2)
     plt.xlim(min(ptedges),max(ptedges))
     # legend without errors: 
@@ -145,6 +145,40 @@ def plot_eff_pt(collections_list):
     plt.savefig(options.plotDir+'/jetefficiency_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.pdf')
     plt.close()
 
+  lowlim = float('inf')
+  for c in collections_list:
+    identifier = c['identifier']
+    avgpt = pickle.load(open(options.submitDir+'/'+'avgpttrue_'+identifier+'.p','rb')) #assumes all algorithms have the same avg pT true
+    incl_effs = pickle.load(open(options.submitDir+'/'+'incl_efficiencies_fom_'+identifier+'.p','rb'))
+    incl_eff_errs = pickle.load(open(options.submitDir+'/'+'incl_efficiency_errs_fom_'+identifier+'.p','rb'))
+
+    plt.errorbar(avgpt,npv_effs,yerr=incl_eff_errs,color=c['color'],linestyle=c['ls'],label=c['label'])
+    lowlim = min(lowlim,min(incl_effs))
+  #ATLAS style
+  axes = plt.axes()
+  if atlas_style:
+    axes.xaxis.set_minor_locator(AutoMinorLocator())
+    axes.yaxis.set_minor_locator(AutoMinorLocator())
+    plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
+    plt.ylabel('Reconstruction Efficiency ($p_T^{reco} > 20$ GeV)', position=(0., 1.), va='top', ha='right')
+    axes.xaxis.set_label_coords(1., -0.15)
+    axes.yaxis.set_label_coords(-0.15, 1.)
+    axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+    axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+    axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+'NPV Incl.', transform=axes.transAxes,linespacing=1.5,size='larger')
+  else:
+    plt.errorbar([0],[0],linestyle=' ',label='NPV Incl.')
+    plt.xlabel('$p_T^{true}$ [GeV]')
+    plt.ylabel('Reconstruction Efficiency ($p_T^{reco}>20$ GeV)')
+  plt.ylim(lowlim-0.1,1.2)
+  plt.xlim(min(ptedges),max(ptedges))
+  # legend without errors: 
+  handles, labels = axes.get_legend_handles_labels()
+  handles = [h[0] for h in handles]
+  plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
+  plt.savefig(options.plotDir+'/jetefficiency_pt_NPVincl'+'_'+options.collections+'.png')
+  plt.savefig(options.plotDir+'/jetefficiency_pt_NPVincl'+'_'+options.collections+'.pdf')
+  plt.close()
 
 collections_list = readCollections()
 plot_eff_npv(collections_list)
