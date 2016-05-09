@@ -109,8 +109,8 @@ def g1(x,a,b,c):
       approx = (round(x,2),round(a,2),round(b,2),round(c,2))
       if approx not in memoized:
         func = lambda y: approx[0]-g(y,a,b,c)
-        if approx>=0: x0 = max([approx[0],10])
-        if approx<0: x0 = min([approx[0],-10])
+        if approx[0]>=0: x0 = max([approx[0],10])
+        if approx[0]<0: x0 = min([approx[0],-10])
         memoized[approx] = fsolve(func,x0)[0]
         #print approx,memoized[approx]
       result.append(memoized[approx])
