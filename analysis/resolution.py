@@ -34,6 +34,7 @@ parser.add_option("-r","--root", help="Root input",action="store_true", default=
 parser.add_option("--jetpt", help="reco jet pT branch name",type=str, default="j0pt")
 parser.add_option("--tjetpt", help="matched truth jet pT branch name",type=str, default="tj0pt")
 parser.add_option("--npv", help="NPV branch name",type=str, default="NPV")
+parser.add_option("--mu", help="mu branch name",type=str, default="mu")
 parser.add_option("--tjeteta", help="matched truth jet eta branch name",type=str, default="tj0eta")
 parser.add_option("--tjetmindr", help="matched truth jet mindr branch name",type=str, default="tj0mindr")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
@@ -152,6 +153,8 @@ def readRoot():
   else: print '== \''+options.tjetpt+'\' branch is being read as truth jet pTs =='
   if options.npv not in branches: raise RuntimeError(options.npv+' branch does not exist. This is the branch containing NPVs.')
   else: print '== \''+options.npv+'\' branch is being read as NPVs =='
+  if options.mu not in branches: print '== \''+options.mu+'\' branch does not exist; mu is not being recorded =='
+  else: print '== \''+options.mu+'\' branch is being read as mus =='
   # optional:
   has_event_weight = False
   has_eta = False
@@ -185,6 +188,7 @@ def readRoot():
   nentries = tree.GetEntries()
 
   npvs = [] 
+  mus = []
   responses = [] 
   truepts = [] 
   recopts = []
@@ -195,6 +199,7 @@ def readRoot():
   if absolute:
     all_weights = []
     all_npvs = []
+    all_mus = []
     all_truepts = []
     all_etas = []
     all_mindrs = []
@@ -210,6 +215,7 @@ def readRoot():
       jpts = getattr(tree,options.jetpt)
       tjpts = getattr(tree,options.tjetpt)
       npv = tree.NPV
+      mu = tree.mu
 
       if has_eta: tjetas = getattr(tree,options.tjeteta)
       if has_mindr: tjmindrs = getattr(tree,options.tjetmindr)
@@ -237,6 +243,8 @@ def readRoot():
 
       jet_npv = [npv]*len(truept)
       npvs += jet_npv
+      jet_mu = [mu]*len(truept)
+      mus += jet_mu
       truepts += truept
       recopts += recopt
       weights += weightjets
@@ -269,6 +277,8 @@ def readRoot():
 
         all_npv = [npv]*len(all_truept)
         all_npvs += all_npv
+        all_mu = [mu]*len(all_truept)
+        all_mus += all_mu
         all_truepts += all_truept
         all_weights += all_weightjets
         all_etas += all_eta
@@ -277,6 +287,7 @@ def readRoot():
   save(options.submitDir+'/truepts_'+finalmu,truepts)
   save(options.submitDir+'/recopts_'+finalmu,recopts)
   save(options.submitDir+'/npvs_'+finalmu,npvs)
+  save(options.submitDir+'/mus_'+finalmu,mus)
   save(options.submitDir+'/etas_'+finalmu,etas)
   save(options.submitDir+'/mindrs_'+finalmu,mindrs)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
@@ -284,6 +295,7 @@ def readRoot():
   if absolute:
     save(options.submitDir+'/all_truepts_'+finalmu,all_truepts)
     save(options.submitDir+'/all_npvs_'+finalmu,all_npvs)
+    save(options.submitDir+'/all_mus_'+finalmu,all_mus)
     save(options.submitDir+'/all_etas_'+finalmu,all_etas)
     save(options.submitDir+'/all_mindrs_'+finalmu,all_mindrs)
     if has_event_weight: save(options.submitDir+'/all_weights_'+finalmu,all_weights)
@@ -303,7 +315,7 @@ def fitres(params=[]):
       recopts,truepts,npvs,weights = readRoot()
     eta_cuts = [True]*len(truepts) 
     mindr_cuts = [True]*len(truepts) 
-    print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be faster. =='
+    print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be significantly faster. =='
     print '== There are '+str(len(truepts))+' total matched jets =='
     if absolute: print '== There are '+str(len(all_truepts))+' total truth jets =='
   else:
