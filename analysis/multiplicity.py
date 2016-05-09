@@ -257,5 +257,5 @@ def calibrate():
   return avg_mults,err_mults
       
 (avg_mults,err_mults) = calibrate()
-pickle.dump(avg_mults,open(options.submitDir+'/avg_mults_'+options.identifier+'.p','wb'))
-pickle.dump(err_mults,open(options.submitDir+'/err_mults_'+options.identifier+'.p','wb'))
+pickle.dump(avg_mults,open(options.submitDir+'/avg_mults_'+options.central+'_'+options.identifier+'.p','wb'))
+pickle.dump(err_mults,open(options.submitDir+'/err_mults_'+options.central+'_'+options.identifier+'.p','wb'))
