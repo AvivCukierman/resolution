@@ -508,7 +508,9 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(resdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       '''if options.central == 'mode':
         (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(resdata,weightdata,options.central)
@@ -520,7 +522,9 @@ def fitres(params=[]):
         #print mu,sigma,ptbin
         gfunc = norm
         y = gfunc.pdf(bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         newy = y[all([bins>lower,bins<upper],axis=0)]
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
@@ -556,7 +560,9 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(ptdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       '''if options.central == 'mode':
         (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptdata,weightdata,options.central)
@@ -569,7 +575,9 @@ def fitres(params=[]):
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         newy = y[all([bins>lower,bins<upper],axis=0)]
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
@@ -679,7 +687,9 @@ def fitres(params=[]):
         (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, muR, sigmaR)
-        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)*normal),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       '''if options.central == 'mode':
         (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
@@ -692,7 +702,9 @@ def fitres(params=[]):
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
         y = gfunc.pdf( bins, muR, sigmaR)
-        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)*normal),'r--',linewidth=2)
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         newy = y[all([bins>lower,bins<upper],axis=0)]
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
@@ -724,7 +736,9 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         l = plt.plot(bins, y, 'r--', linewidth=2)
       '''if options.central == 'mode':
         (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
@@ -737,7 +751,9 @@ def fitres(params=[]):
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
         y = gfunc.pdf( bins, mu, sigma)
-        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+        normal = sum(n)/sum(y) 
+        y = y*normal #normalize
+        plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         newy = y[all([bins>lower,bins<upper],axis=0)]
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
@@ -991,7 +1007,9 @@ def fitres(params=[]):
       (muR,muR_err,sigmaR,sigmaR_err) = distribution_values(resestdata,weightdata,options.central)
       gfunc = norm
       y = gfunc.pdf( bins, muR, sigmaR)
-      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+      normal = sum(n)/sum(y) 
+      y = y*normal #normalize
+      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)*normal),'r--',linewidth=2)
       l = plt.plot(bins, y, 'r--', linewidth=2)
     '''if options.central == 'mode':
       (muR,muR_err,sigmaR,sigmaR_err,kernel) = distribution_values(resestdata,weightdata,options.central)
@@ -1004,7 +1022,9 @@ def fitres(params=[]):
       newbins = bins[all([bins>lower,bins<upper],axis=0)]
       gfunc = norm
       y = gfunc.pdf( bins, muR, sigmaR)
-      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)),'r--',linewidth=2)
+      normal = sum(n)/sum(y) 
+      y = y*normal #normalize
+      plt.plot((muR,muR),(0,gfunc.pdf(muR,muR,sigmaR)*normal),'r--',linewidth=2)
       newbins = bins[all([bins>lower,bins<upper],axis=0)]
       newy = y[all([bins>lower,bins<upper],axis=0)]
       l = plt.plot(newbins, newy, 'r--', linewidth=2)
@@ -1036,7 +1056,9 @@ def fitres(params=[]):
       (mu,mu_err,sigma,sigma_err) = distribution_values(ptestdata,weightdata,options.central)
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
-      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+      normal = sum(n)/sum(y) 
+      y = y*normal #normalize
+      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
       l = plt.plot(bins, y, 'r--', linewidth=2)
     '''if options.central == 'mode':
       (mu,mu_err,sigma,sigma_err,kernel) = distribution_values(ptestdata,weightdata,options.central)
@@ -1049,7 +1071,9 @@ def fitres(params=[]):
       newbins = bins[all([bins>lower,bins<upper],axis=0)]
       gfunc = norm
       y = gfunc.pdf( bins, mu, sigma)
-      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)),'r--',linewidth=2)
+      normal = sum(n)/sum(y) 
+      y = y*normal #normalize
+      plt.plot((mu,mu),(0,gfunc.pdf(mu,mu,sigma)*normal),'r--',linewidth=2)
       newbins = bins[all([bins>lower,bins<upper],axis=0)]
       newy = y[all([bins>lower,bins<upper],axis=0)]
       l = plt.plot(newbins, newy, 'r--', linewidth=2)
