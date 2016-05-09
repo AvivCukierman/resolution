@@ -62,11 +62,27 @@ def distribution_values(data,weights,central,eff=1):
       if central == 'absolute_median':
         mu = quantile(data,weights,(0.5-(1-eff))/eff)
         mu_err = 1.2533*mean_err #http://influentialpoints.com/Training/standard_error_of_median.htm
-        upper_quantile = quantile(data,weights,(0.8413-(1-eff))/eff) #CDF(1)
-        if 0.1587 < (1-eff): lower_quantile = float('-inf')
-        else: lower_quantile = quantile(data,weights,(0.1587-(1-eff))/eff)
-        sigma = (upper_quantile-mu)
-        sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+        mu_ests = [mu-mu_err,mu,mu+mu_err]
+        sigmas = []
+        for mu_est in mu_ests:
+          mu_quantile = sum(weights[data<mu_est]) 
+          absolute_mu_quantile = mu_quantile*eff+(1-eff) #should be approximately 0.5
+          err = False
+          if abs(absolute_mu_quantile-0.5) > 0.1:
+            print '<< Fitted mode is > .1 away from 50th percentile. Efficiency might be less than 50%. Calibration value might not be very useful. >>'
+            err = True
+          if absolute_mu_quantile > 1-.3413:
+            print '<< Fitted mode is at > 65th percentile! Bad fit. Efficiency might be less than 50%. Returning max value - mode. >>'
+            upper_quantile = max(data)
+            err = True
+          else: upper_quantile = quantile(data,weights,mu_quantile+.3413/eff) # = (absolute_mu_quantile+0.3413-(1-eff))/eff
+          if absolute_mu_quantile<0.3413+1-eff: lower_quantile = float('-inf')
+          else: lower_quantile = quantile(data,weights,mu_quantile-.3413/eff) # = (absolute_mu_quantile-0.3413-(1-eff))/eff
+          sigma = (upper_quantile-mu_est)
+          sigmas.append(sigma)
+        #sigma_err = 1.573*std_err #http://stats.stackexchange.com/questions/110902/error-on-interquartile-range seems reasonable
+        sigma = average(sigmas)
+        sigma_err = 0.5*(sigmas[2]-sigmas[0])
         return mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err
       if central == 'median':
         mu = quantile(data,weights,0.5)
