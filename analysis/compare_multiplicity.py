@@ -21,10 +21,11 @@ except ImportError: print 'Not using ATLAS style (Can\'t import rootpy. Try sett
 parser = OptionParser()
 
 # job configuration
-parser.add_option("--submitDir", help="Directory containing output files",type=str, default="../output")
+parser.add_option("--submitDir", help="Directory containing output files",type=str, default="../output_absolute")
 parser.add_option("--plotDir", help="Directory containing plots",type=str, default="../plots")
 parser.add_option("--collections", help="file containing jet collection identifiers and labels",type=str, default="collections")
 parser.add_option("-c","--cut", help="Low pT cut on reco (calibrated) jets",type=str, default="20")
+parser.add_option("--plotlabel", help="label going on every plot (only if using ATLAS style)",type=str, default='$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{<\mu>=20}$')
 
 (options, args) = parser.parse_args()
 
@@ -66,7 +67,7 @@ def plot_mults():
     axes.yaxis.set_label_coords(-0.15, 1.)
     axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
     axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-    axes.text(0.05,0.65,'$\mathregular{\sqrt{s}=13}$ TeV, $\mathregular{\mu=40}$\nPythia8 dijets\n20 GeV $< p_T^{true} < $60 GeV', transform=axes.transAxes,linespacing=1.5,size='larger')
+    axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets', transform=axes.transAxes,linespacing=1.5,size='larger')
   else:
     plt.xlabel('NPV')
     plt.ylabel('Average Jet Multiplicity ($pT>$ '+options.cut+' GeV)')
