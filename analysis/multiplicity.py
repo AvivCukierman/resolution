@@ -36,6 +36,7 @@ parser.add_option("--event_weight", help="event weight branch name",type=str, de
 
 # jet configuration
 parser.add_option("-c","--cut", default=20, type=float, help="low pT cut on (calibrated) reco jets")
+parser.add_option("-m","--central",help="Choice of notion of central tendency/resolution (mean, mode, median, absolute_median, or trimmed)",type='choice',choices=['mean','mode','median','absolute_median','trimmed','kde_mode'],default='mode')
 parser.add_option("--mineta", help="min abs(eta) on reco jets", type=float, default=0)
 parser.add_option("--maxeta", help="max abs(eta) on reco jets", type=float, default=float('inf'))
 
@@ -70,7 +71,9 @@ def g1(x,a,b,c):
       approx = (round(x,1),round(a,1),round(b,1),round(c,1))
       if approx not in memoized:
         func = lambda y: approx[0]-g(y,a,b,c)
-        memoized[approx] = fsolve(func,approx)[0]
+        if approx[0]>=0: x0 = max([approx[0],10])
+        if approx[0]<0: x0 = min([approx[0],-10])
+        memoized[approx] = fsolve(func,x0)[0]
         #print approx,memoized[approx]
       result.append(memoized[approx])
     return array(result)
@@ -125,9 +128,7 @@ def readRoot():
   npvs = [] 
   recopts = []
   weights = [] 
-  event_numbers = []
 
-  event_number = 0 
   for jentry in xrange(nentries):
       if jentry>options.numEvents and options.numEvents>0: continue
       tree.GetEntry(jentry)
@@ -149,27 +150,22 @@ def readRoot():
             jeta = jetas[i]
             if fabs(jeta)>options.maxeta or fabs(jeta)<options.mineta: continue
           recopt.append(jpt)
-          if has_event_weight:
-            weightjets.append(event_weight)
-          else: weightjets.append(1) #set all events to have the same weight
 
-      npv = [npv]*len(recopt)
-      npvs += npv
-      event_numbers += [event_number]*len(recopt)
-      event_number += 1
-      recopts += recopt
-      weights += weightjets
+      npvs.append(npv)
+      recopts.append(recopt)
+      if has_event_weight:
+        weights.append(event_weight)
+      else: weight.append(1) #set all events to have the same weight
 
   save(options.submitDir+'/recopts_all_'+finalmu,recopts)
   save(options.submitDir+'/npvs_all_'+finalmu,npvs)
-  save(options.submitDir+'/event_numbers_all_'+finalmu,event_numbers)
   if has_event_weight: save(options.submitDir+'/weights_all_'+finalmu,weights)
 
-  return array(recopts),array(npvs),array(event_numbers),array(weights)
+  return array(recopts),array(npvs),array(weights)
 
 def calibrate():
   if options.root: 
-    recopts,npvs,event_numbers,weights = readRoot()
+    recopts,npvs,weights = readRoot()
     eta_cuts = [True]*len(recopts) 
     print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be faster. =='
     print '== There are '+str(len(recopts))+' total jets =='
@@ -187,13 +183,6 @@ def calibrate():
     if not len(npvs)==len(recopts):
       raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
 
-    filename = options.submitDir+'/'+'event_numbers_all_'+options.identifier+'.npy'
-    if not os.path.exists(filename): raise OSError(filename +' does not exist')
-    print '== Loading file <'+filename+'> as event numbers =='
-    event_numbers = load(filename)
-    if not len(event_numbers)==len(recopts):
-      raise RuntimeError('There should be the same number of npvs as truth jets (format is one entry per truth jet)')
-
     filename = options.submitDir+'/'+'weights_all_'+options.identifier+'.npy'
     if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as event weights =='
@@ -204,7 +193,7 @@ def calibrate():
       print '== '+filename+' does not exist; weighting every event the same =='
       weights = array([1]*len(recopts))
 
-    filename = options.submitDir+'/'+'etas_all_'+options.identifier+'.npy'
+    '''filename = options.submitDir+'/'+'etas_all_'+options.identifier+'.npy'
     if os.path.exists(filename): 
       print '== Loading file <'+filename+'> as reco jet etas =='
       etas = load(filename)
@@ -213,10 +202,10 @@ def calibrate():
       eta_cuts = numpy.all([abs(etas)<options.mineta,abs(etas)>options.maxeta]) 
     else:
       print '== '+filename+' does not exist; no additional eta cuts set (if you started reading from a root file, this is ok) =='
-      eta_cuts = [True]*len(recopts) 
+      eta_cuts = [True]*len(recopts) '''
 
   
-  fits = pickle.load(open(options.submitDir+'/'+'fit_'+options.identifier+'.p','rb'))
+  fits = pickle.load(open(options.submitDir+'/'+'fit_'+options.central+'_'+options.identifier+'.p','rb'))
   npvedges = fits.keys()
   avg_mults = {n:0 for n in npvedges} 
   err_mults = {n:0 for n in npvedges} 
@@ -228,24 +217,18 @@ def calibrate():
 
   for npvbin in xrange(1,len(npvedges)):
     print '>> Processing NPV bin '+str(npvedges[npvbin-1])+'-'+str(npvedges[npvbin])
-    ptdata = recopts[npvbins==npvbin]
+    evt_ptdata = recopts[npvbins==npvbin]
     npvdata = npvs[npvbins==npvbin]
     weightdata = weights[npvbins==npvbin]
-    event_numberdata = event_numbers[npvbins==npvbin]
 
     fit = fits[npvedges[npvbin]]
-    calibptdata = g1(ptdata,*fit)
+    evt_calibptdata = [g1(ptdata,*fit) for ptdata in evt_ptdata]
 
     event_multiplicities = []
     event_weights = []
 
-    unique_events = set(event_numberdata)
-    for event in unique_events:
-      event_calib_jets = calibptdata[event_numberdata==event]
-      event_weight = weightdata[event_numberdata==event]
-      if len(set(event_weight))>1: raise RuntimeError('Not all the event weights for a single event are the same.')
-      event_weight = event_weight[0]
-      event_multiplicity = len(event_calib_jets[event_calib_jets>options.cut])
+    for calibptdata,event_weight in zip(evt_calibptdata,weightdata):
+      event_multiplicity = len(calibptdata[calibptdata>options.cut])
       event_multiplicities.append(event_multiplicity)
       event_weights.append(event_weight)
 
