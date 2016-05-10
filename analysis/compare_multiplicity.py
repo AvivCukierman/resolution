@@ -78,6 +78,7 @@ def plot_mults():
   handles = [h[0] for h in handles]
   plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
   plt.savefig(options.plotDir+'/jetmultiplicity'+'_'+options.collections+'.png')
+  plt.savefig(options.plotDir+'/jetmultiplicity'+'_'+options.collections+'.pdf')
   plt.close()
 
 
