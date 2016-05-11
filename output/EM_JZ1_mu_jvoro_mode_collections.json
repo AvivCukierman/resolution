@@ -1,0 +1,35 @@
+{
+  "mus":[20,80],
+  "collections":[
+    {
+      "identifiers":["mode_j0_jz1_EM","mode_j0_jz1_mu80_EM"],
+      "label":"Anti-kT4 EM Jets ($\\rho$-Area Subtracted)",
+      "color":"b",
+      "ls":"-"
+    },
+    {
+      "identifiers":["mode_jnoarea0_jz1_EM","mode_jnoarea0_jz1_mu80_EM"],
+      "label":"Anti-kT4 EM Jets (Unsubtracted)",
+      "color":"b",
+      "ls":"--"
+    },
+    {
+      "identifiers":["mode_jvoro0_jz1_EM","mode_jvoro0_jz1_mu80_EM"],
+      "label":"Voronoi (EM, Negative Suppression)",
+      "color":"r",
+      "ls":"-"
+    },
+    {
+      "identifiers":["mode_jvoro1_jz1_EM","mode_jvoro1_jz1_mu80_EM"],
+      "label":"Voronoi (EM, 1-Sigma Suppression)",
+      "color":"r",
+      "ls":"--"
+    },
+    {
+      "identifiers":["mode_jvoros_jz1_EM","mode_jvoros_jz1_mu80_EM"],
+      "label":"Voronoi (EM, Spreading)",
+      "color":"g",
+      "ls":"-"
+    }
+  ]
+}
