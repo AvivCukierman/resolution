@@ -542,8 +542,7 @@ def fitres(params=[]):
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
-      if bins[0]<0: plt.xlim(-0.5,3.0)
-      else: plt.xlim(0,3.0)
+      plt.xlim(-0.5,3.0)
       plt.ylim(0,2.5)
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
@@ -674,6 +673,7 @@ def fitres(params=[]):
 
       if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
+        efficiency = sum(weightdata)/sum(all_weightdata)
         if efficiency>1:
           #raise RuntimeError('Efficiency > 1. Check truth jets?')
           efficiency=1
@@ -725,8 +725,7 @@ def fitres(params=[]):
         l = plt.plot(newbins, newy, 'r--', linewidth=2)
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
-      if bins[0]<0: plt.xlim(-0.5,3.0)
-      else: plt.xlim(0,3.0)
+      plt.xlim(-0.5,3.0)
       plt.ylim(0,1.5)
       plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
