@@ -454,6 +454,8 @@ def fitres(params=[]):
   npv_sigma_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaRs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   npv_sigmaR_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  npv_closures = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
+  npv_closure_errs = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
   Ropts = {npvedges[npvbin]: [] for npvbin in xrange(1,len(npvedges))}
 
   if absolute:
@@ -815,6 +817,8 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetclosure_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
 
+    npv_closures[npvedges[npvbin]] = calmuRs
+    npv_closure_errs[npvedges[npvbin]] = calmuR_errs
     plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
@@ -893,6 +897,16 @@ def fitres(params=[]):
   plt.xlim(0,options.maxpt+10)
   plt.legend(loc='upper left',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue_'+options.central+'_'+identifier+'.png')
+  plt.close()
+
+  for i,npv in enumerate(npv_keys):
+    plt.errorbar(avgtruept,npv_closures[npv],yerr=npv_closure_errs[npv],color=colors[i],linestyle=linestyles[i],label=labels[i])
+  plt.xlabel('$p_T^{true}$ [GeV]')
+  plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
+  plt.ylim(0.8,1.2)
+  plt.xlim(0,options.maxpt+10)
+  plt.legend(loc='upper left',frameon=False,numpoints=1)
+  plt.savefig(options.plotDir+'/jetclosure_pttrue_'+options.central+'_'+identifier+'.png')
   plt.close()
 
   if absolute:
