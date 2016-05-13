@@ -7,6 +7,7 @@ from scipy.stats import norm
 from helper_functions import distribution_values
 from operator import sub
 from optparse import OptionParser
+from copy import copy
 os.environ[ 'MPLCONFIGDIR' ] = '/tmp/' #to get matplotlib to work
 
 '''try:
@@ -430,7 +431,8 @@ def fitres(params=[]):
   npvs = npvs[cuts]
   weights = weights[cuts]
 
-  incl_ptests = recopts #replace recopts with estpts as they come up (only within given NPV and pT ranges)
+  incl_ptests = copy(recopts) #replace recopts with estpts as they come up (only within given NPV and pT ranges)
+  incl_resests = copy(responses) #replace recopts with resests as they come up (only within given NPV and pT ranges)
 
   ptbins = digitize(truepts,ptedges)
 
@@ -670,6 +672,7 @@ def fitres(params=[]):
       ptestdata = g1(ptdata,*Ropt)
       incl_ptests[all([ptbins==ptbin,npvbins==npvbin],axis=0)] = ptestdata
       resestdata = ptestdata/trueptdata
+      incl_resests[all([ptbins==ptbin,npvbins==npvbin],axis=0)] = ptestdata/trueptdata
 
       if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
@@ -791,8 +794,9 @@ def fitres(params=[]):
         efficiencies_fom.append(efficiency_fom)
         efficiency_errs_fom.append(efficiency_err_fom)
 
-    estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
-    plt.plot(truepts[npvbins==npvbin],estpts[npvbins==npvbin],'.')
+    #estpts = g1(recopts,*Ropt) #shouldn't take more time because of memoization
+    indices = all([npvbins==npvbin,truepts>=options.minpt,truepts<options.maxpt],axis=0)
+    plt.plot(truepts[indices],incl_ptests[indices],'.')
     plt.errorbar(avgtruept,calmus,color='g',marker='o',linestyle='',yerr=calmu_errs)
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco,cal}$ [GeV]')
@@ -801,8 +805,8 @@ def fitres(params=[]):
     plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
     
-    closure = estpts/truepts
-    plt.plot(truepts[npvbins==npvbin],closure[npvbins==npvbin],'.')
+    #closure = estpts/truepts
+    plt.plot(truepts[indices],incl_resests[indices],'.')
     plt.errorbar(avgtruept,calmuRs,color='g',marker='o',linestyle='',yerr=calmuR_errs)
     plt.xlabel('$p_T^{true}$ [GeV]')
     plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
@@ -1113,7 +1117,8 @@ def fitres(params=[]):
       incl_efficiencies_fom.append(efficiency_fom)
       incl_efficiencies_err_fom.append(efficiency_err_fom)
 
-  plt.plot(truepts[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],incl_ptests[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],'.')
+  indices = all([npvs>=options.minnpv,npvs<options.maxnpv,truepts>=options.minpt,truepts<options.maxpt],axis=0)
+  plt.plot(truepts[indices],incl_ptests[indices],'.')
   plt.errorbar(avgtruept,incl_calmus,color='g',marker='o',linestyle='',yerr=incl_calmu_errs)
   plt.xlabel('$p_T^{true}$ [GeV]')
   plt.ylabel('$p_T^{reco,cal}$ [GeV]')
@@ -1122,8 +1127,8 @@ def fitres(params=[]):
   plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
   
-  closure = incl_ptests/truepts
-  plt.plot(truepts[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],closure[all([npvs>=options.minnpv,npvs<options.maxnpv],axis=0)],'.')
+  #closure = incl_ptests/truepts
+  plt.plot(truepts[indices],incl_resests[indices],'.')
   plt.errorbar(avgtruept,incl_calmuRs,color='g',marker='o',linestyle='',yerr=incl_calmuR_errs)
   plt.xlabel('$p_T^{true}$ [GeV]')
   plt.ylabel('$p_T^{reco,cal}/p_T^{true}$')
