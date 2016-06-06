@@ -38,6 +38,7 @@ parser.add_option("--npv", help="NPV branch name",type=str, default="NPV")
 parser.add_option("--mu", help="mu branch name",type=str, default="mu")
 parser.add_option("--tjeteta", help="matched truth jet eta branch name",type=str, default="tj0eta")
 parser.add_option("--tjetmindr", help="matched truth jet mindr branch name",type=str, default="tj0mindr")
+parser.add_option("--jetmindr", help="reco jet mindr branch name",type=str, default="j0mindr")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
 ## All truth jets (only required if using absolute scale) 
 parser.add_option("--all_tjetpt", help="all truth jet pT branch name",type=str, default="tjpt")
@@ -49,6 +50,7 @@ parser.add_option("-c","--cut", default=float('-inf'), type=float, help="low pT 
 parser.add_option("--mineta", help="min abs(eta) on truth jets", type=float, default=0)
 parser.add_option("--maxeta", help="max abs(eta) on truth jets", type=float, default=float('inf'))
 parser.add_option("--mindr", help="min dr on truth jets", type=float, default=0)
+parser.add_option("--reco_mindr", help="min dr on reco jets", type=float, default=0)
 
 # analysis configuration
 parser.add_option("-e","--absolute",help="Calculate efficiency as well",action="store_true",default=False)
@@ -172,6 +174,10 @@ def readRoot():
   else:
     has_mindr = True
     print '== \''+options.tjetmindr+'\' branch being read as matched truth jet mindrs =='
+  if options.jetmindr not in branches: print '== \''+options.jetmindr+'\' branch does not exist; no mindr cuts set on reco jets=='  
+  else:
+    has_reco_mindr = True
+    print '== \''+options.jetmindr+'\' branch being read as matched truth jet mindrs =='
 
   if absolute:
     if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
@@ -196,6 +202,7 @@ def readRoot():
   weights = [] 
   etas = []
   mindrs = []
+  reco_mindrs = []
 
   if absolute:
     all_weights = []
@@ -220,6 +227,7 @@ def readRoot():
 
       if has_eta: tjetas = getattr(tree,options.tjeteta)
       if has_mindr: tjmindrs = getattr(tree,options.tjetmindr)
+      if has_reco_mindr: jmindrs = getattr(tree,options.jetmindr)
       if has_event_weight: event_weight = tree.event_weight*sampweight
 
       truept = []
@@ -227,6 +235,7 @@ def readRoot():
       weightjets = []
       eta = []
       mindr = []
+      reco_mindr = []
       for i,(jpt,tjpt) in enumerate(zip(jpts,tjpts)):
           if has_eta:
             tjeta = tjetas[i]
@@ -234,10 +243,14 @@ def readRoot():
           if has_mindr:
             tjmindr = tjmindrs[i]
             if tjmindr<options.mindr: continue
+          if has_reco_mindr:
+            jmindr = jmindrs[i]
+            #if jmindr<options.reco_mindr: continue
           truept.append(tjpt)
           recopt.append(jpt)
-          eta.append(tjeta)
-          mindr.append(tjmindr)
+          if has_eta: eta.append(tjeta)
+          if has_mindr: mindr.append(tjmindr)
+          if has_reco_mindr: reco_mindr.append(jmindr)
           if has_event_weight:
             weightjets.append(event_weight)
           else: weightjets.append(1) #set all events to have the same weight
@@ -251,6 +264,7 @@ def readRoot():
       weights += weightjets
       etas += eta
       mindrs += mindr
+      reco_mindrs += reco_mindr
 
       if absolute:
         all_tjpts = getattr(tree,options.all_tjetpt)
@@ -289,8 +303,9 @@ def readRoot():
   save(options.submitDir+'/recopts_'+finalmu,recopts)
   save(options.submitDir+'/npvs_'+finalmu,npvs)
   save(options.submitDir+'/mus_'+finalmu,mus)
-  save(options.submitDir+'/etas_'+finalmu,etas)
-  save(options.submitDir+'/mindrs_'+finalmu,mindrs)
+  if has_eta: save(options.submitDir+'/etas_'+finalmu,etas)
+  if has_mindr: save(options.submitDir+'/mindrs_'+finalmu,mindrs)
+  if has_reco_mindr: save(options.submitDir+'/reco_mindrs_'+finalmu,reco_mindrs)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
 
   if absolute:
@@ -373,6 +388,17 @@ def fitres(params=[]):
       print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
   
+    filename = options.submitDir+'/'+'reco_mindrs_'+options.identifier+'.npy'
+    if os.path.exists(filename):
+      print '== Loading file <'+filename+'> as reco jet mindRs =='
+      reco_mindrs = load(filename)
+      if not len(reco_mindrs)==len(truepts):
+        raise RuntimeError('There should be the same number of mindRs as truth jets')
+      reco_mindr_cuts = reco_mindrs>options.reco_mindr
+    else:
+      print '== '+filename+' does not exist; no reco mindR cuts set =='
+      reco_mindr_cuts = [True]*len(truepts) 
+
     if absolute:
       filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
       if not os.path.exists(filename): raise OSError(filename +' does not exist')
@@ -423,7 +449,7 @@ def fitres(params=[]):
   maxpt = options.maxpt
   if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
   ptedges = range(options.minpt,maxpt,options.ptbin)
-  cuts = all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts],axis=0)
+  cuts = all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts,reco_mindr_cuts],axis=0)
 
   recopts = recopts[cuts]
   truepts = truepts[cuts]
@@ -489,7 +515,7 @@ def fitres(params=[]):
 
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
-      n,bins,patches = plt.hist(resdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+      n,bins,patches = plt.hist(resdata,normed=True,bins=int((max(resdata)-min(resdata))*60/2),weights=weightdata,facecolor='b',histtype='stepfilled')
       if absolute:
         all_weightdata = all_weights[all([all_ptbins==ptbin,all_npvbins==npvbin],axis=0)]
         efficiency = sum(weightdata)/sum(all_weightdata)
@@ -535,7 +561,7 @@ def fitres(params=[]):
         plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(resdata,weightdata,options.central)
-        #print mu,sigma,ptbin
+        print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(mu) + '; Fitted width ' + str(sigma)
         gfunc = norm
         y = gfunc.pdf(bins, mu, sigma)
         normal = sum(n)/sum(y) 
@@ -547,7 +573,7 @@ def fitres(params=[]):
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.xlim(-0.5,3.0)
-      plt.ylim(0,2.5)
+      plt.ylim(0,3.5)
       plt.savefig(options.plotDir+'/resbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
       avgres.append(mu)
@@ -684,7 +710,7 @@ def fitres(params=[]):
           efficiency=1
         efficiency_fom = sum(weightdata[ptestdata>20])/sum(all_weightdata) #FoM: efficiency on all truth jets if cutting at 20 GeV on reco
         efficiency_err_fom = sqrt(sum(weightdata[ptestdata>20]**2))/sum(all_weightdata)
-      n,bins,patches = plt.hist(resestdata,normed=True,bins=100,weights=weightdata,facecolor='b',histtype='stepfilled')
+      n,bins,patches = plt.hist(resestdata,normed=True,bins=int((max(resestdata)-min(resestdata))*60/2),weights=weightdata,facecolor='b',histtype='stepfilled')
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
@@ -718,6 +744,7 @@ def fitres(params=[]):
         plt.plot(bins,y,'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
+        print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(muR) + '; Fitted width ' + str(sigmaR)
         #print muR,sigmaR,ptbin
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
@@ -731,7 +758,7 @@ def fitres(params=[]):
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.xlim(-0.5,3.0)
-      plt.ylim(0,1.5)
+      plt.ylim(0,3.5)
       plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
 

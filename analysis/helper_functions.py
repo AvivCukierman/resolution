@@ -9,8 +9,10 @@ import ROOT as r
 def mode_est(x,w,nSigmaA,nSigmaB):
   means = []
   sigmas = []
-  for bins in [100]:
-    hist = r.TH1F("h1","h1",bins,min(x),max(x))
+  isResponse = quantile(x,w,0.1)>0 and quantile(x,w,0.9)<2 #if 80% of the data is between 0 and 2, probably response data
+  for bins in [60]:
+    if isResponse: hist = r.TH1F("h1","h1",bins,0,2)
+    else: hist = r.TH1F("h1","h1",bins,min(x),max(x))
     for xx,ww in zip(x,w): hist.Fill(xx,ww)
 
     mean = hist.GetMean()
@@ -38,6 +40,8 @@ def mode_est(x,w,nSigmaA,nSigmaB):
       hist.Fit(gfit,"RQ0") # Fit histogram h
       mean=gfit.GetParameter(1)
       sigma=gfit.GetParameter(2)
+    if isResponse and mean>2: print 'Interpreting data as response data, but mean is above 2. Possible error.'
+    if not isResponse and mean<2: print 'Interpreting data as reco data, but mean is below 2. Possible error.'
     means.append(mean)
     sigmas.append(sigma)
   means = array(means)
