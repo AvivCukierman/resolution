@@ -330,7 +330,7 @@ def fitres(params=[]):
     else:
       recopts,truepts,npvs,weights = readRoot()
     eta_cuts = [True]*len(truepts) 
-    mindr_cuts = [True]*len(truepts) 
+    mindr_cuts = [True]*len(truepts)
     print '== Root files read. Data saved in '+options.submitDir+'. Next time you can run without -r option and it should be significantly faster. =='
     print '== There are '+str(len(truepts))+' total matched jets =='
     if absolute: print '== There are '+str(len(all_truepts))+' total truth jets =='
@@ -388,16 +388,6 @@ def fitres(params=[]):
       print '== '+filename+' does not exist; no mindR cuts set =='
       mindr_cuts = [True]*len(truepts) 
   
-    filename = options.submitDir+'/'+'reco_mindrs_'+options.identifier+'.npy'
-    if os.path.exists(filename):
-      print '== Loading file <'+filename+'> as reco jet mindRs =='
-      reco_mindrs = load(filename)
-      if not len(reco_mindrs)==len(truepts):
-        raise RuntimeError('There should be the same number of mindRs as truth jets')
-      reco_mindr_cuts = reco_mindrs>options.reco_mindr
-    else:
-      print '== '+filename+' does not exist; no reco mindR cuts set =='
-      reco_mindr_cuts = [True]*len(truepts) 
 
     if absolute:
       filename = options.submitDir+'/'+'all_truepts_'+options.identifier+'.npy'
@@ -444,6 +434,18 @@ def fitres(params=[]):
       else:
         print '== '+filename+' does not exist; no mindR cuts set =='
         all_mindr_cuts = [True]*len(all_truepts) 
+
+  #do this if reading from root or not
+  filename = options.submitDir+'/'+'reco_mindrs_'+options.identifier+'.npy'
+  if os.path.exists(filename):
+    if not options.root: print '== Loading file <'+filename+'> as reco jet mindRs =='
+    reco_mindrs = load(filename)
+    if not len(reco_mindrs)==len(truepts):
+      raise RuntimeError('There should be the same number of mindRs as truth jets')
+    reco_mindr_cuts = reco_mindrs>options.reco_mindr
+  else:
+    print '== '+filename+' does not exist; no reco mindR cuts set =='
+    reco_mindr_cuts = [True]*len(truepts) 
 
 
   maxpt = options.maxpt
