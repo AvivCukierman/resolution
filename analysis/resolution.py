@@ -29,6 +29,7 @@ parser.add_option("--plotDir", help="Directory containing plots",type=str, defau
 parser.add_option("--numEvents", help="How many events to include (set to -1 for all events)",type=int, default=100000)
 parser.add_option("-i","--identifier", help="sample identifier",type=str, default="myjets")
 parser.add_option("-r","--root", help="Root input",action="store_true", default=False)
+parser.add_option("-d","--debug", help="Debug",action="store_true", default=False)
 
 # Root configuration
 ## Reconstructed jets and matched truth jets
@@ -177,7 +178,7 @@ def readRoot():
   if options.jetmindr not in branches: print '== \''+options.jetmindr+'\' branch does not exist; no mindr cuts set on reco jets=='  
   else:
     has_reco_mindr = True
-    print '== \''+options.jetmindr+'\' branch being read as matched truth jet mindrs =='
+    print '== \''+options.jetmindr+'\' branch being read as reco jet mindrs =='
 
   if absolute:
     if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
@@ -222,12 +223,23 @@ def readRoot():
 
       jpts = getattr(tree,options.jetpt)
       tjpts = getattr(tree,options.tjetpt)
+      if not len(jpts)==len(tjpts):
+        raise RuntimeError('There should be the same number of reco jets as truth jets')
       npv = tree.NPV
       mu = tree.mu
 
-      if has_eta: tjetas = getattr(tree,options.tjeteta)
-      if has_mindr: tjmindrs = getattr(tree,options.tjetmindr)
-      if has_reco_mindr: jmindrs = getattr(tree,options.jetmindr)
+      if has_eta:
+        tjetas = getattr(tree,options.tjeteta)
+        if not len(tjetas)==len(tjpts):
+          raise RuntimeError('There should be the same number of truth etas as truth jets')
+      if has_mindr:
+        tjmindrs = getattr(tree,options.tjetmindr)
+        if not len(tjmindrs)==len(tjpts):
+          raise RuntimeError('There should be the same number of truth mindrs as truth jets')
+      if has_reco_mindr:
+        jmindrs = getattr(tree,options.jetmindr)
+        if not len(jmindrs)==len(jpts):
+          raise RuntimeError('There should be the same number of reco mindrs as reco jets')
       if has_event_weight: event_weight = tree.event_weight*sampweight
 
       truept = []
@@ -250,6 +262,7 @@ def readRoot():
           recopt.append(jpt)
           if has_eta: eta.append(tjeta)
           if has_mindr: mindr.append(tjmindr)
+          pdb.set_trace()
           if has_reco_mindr: reco_mindr.append(jmindr)
           if has_event_weight:
             weightjets.append(event_weight)
@@ -442,11 +455,10 @@ def fitres(params=[]):
     reco_mindrs = load(filename)
     if not len(reco_mindrs)==len(truepts):
       raise RuntimeError('There should be the same number of mindRs as truth jets')
-    reco_mindr_cuts = reco_mindrs>options.reco_mindr
+    reco_mindr_cuts = reco_mindrs>=options.reco_mindr
   else:
     print '== '+filename+' does not exist; no reco mindR cuts set =='
     reco_mindr_cuts = [True]*len(truepts) 
-
 
   maxpt = options.maxpt
   if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
@@ -531,6 +543,7 @@ def fitres(params=[]):
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         if not absolute: raise RuntimeError('In order to use absolute IQR, you have to have all truth jets and calculate efficiency. Use -e option.')
         (mu,mu_err,sigma,sigma_err,upper_quantile,lower_quantile,err) = distribution_values(resdata,weightdata,options.central,eff=efficiency)
+        if options.debug: print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(mu) + '; Absolute IQR ' + str(sigma)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
         plt.plot((mu,mu),(0,plt.ylim()[1]),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
@@ -563,7 +576,7 @@ def fitres(params=[]):
         plt.plot((mu,mu),(0,kernel(mu)),'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(resdata,weightdata,options.central)
-        print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(mu) + '; Fitted width ' + str(sigma)
+        if options.debug: print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(mu) + '; Fitted width ' + str(sigma)
         gfunc = norm
         y = gfunc.pdf(bins, mu, sigma)
         normal = sum(n)/sum(y) 
@@ -715,6 +728,7 @@ def fitres(params=[]):
       n,bins,patches = plt.hist(resestdata,normed=True,bins=int((max(resestdata)-min(resestdata))*60/2),weights=weightdata,facecolor='b',histtype='stepfilled')
       if options.central == 'absolute_median' or options.central == 'mode' or options.central == 'kde_mode':
         (muR,muR_err,sigmaR,sigmaR_err,upper_quantile,lower_quantile,err) = distribution_values(resestdata,weightdata,options.central,eff=efficiency)
+        if options.debug: print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(muR) + '; Absolute IQR ' + str(sigmaR)
         if err: print '<< In pT bin '+str(ptbin)+' ('+str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+' GeV) >>'
         plt.plot((muR,muR),(0,plt.ylim()[1]),'r--',linewidth=2)
         height = 0.607*max(n) #height at x=1*sigma in normal distribution
@@ -746,7 +760,7 @@ def fitres(params=[]):
         plt.plot(bins,y,'r--',linewidth=2)'''
       if options.central == 'trimmed':
         (muR,muR_err,sigmaR,sigmaR_err,lower,upper) = distribution_values(resestdata,weightdata,options.central)
-        print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(muR) + '; Fitted width ' + str(sigmaR)
+        if options.debug: print 'pT = ' +str(ptedges[ptbin-1])+'-'+str(ptedges[ptbin])+': '+'Mode ' + str(muR) + '; Fitted width ' + str(sigmaR)
         #print muR,sigmaR,ptbin
         newbins = bins[all([bins>lower,bins<upper],axis=0)]
         gfunc = norm
