@@ -41,6 +41,8 @@ parser.add_option("--tjeteta", help="matched truth jet eta branch name",type=str
 parser.add_option("--tjetmindr", help="matched truth jet mindr branch name",type=str, default="tj0mindr")
 parser.add_option("--jetmindr", help="reco jet mindr branch name",type=str, default="j0mindr")
 parser.add_option("--event_weight", help="event weight branch name",type=str, default="event_weight")
+parser.add_option("--jetisPU", help="branch name for is pileup indicator on reco jets (only necessary for fake calculation)",type=str, default="j0isPU")
+parser.add_option("--jeteta", help="branch name for jet eta (only necessary for fake calculation)",type=str, default="j0eta")
 ## All truth jets (only required if using absolute scale) 
 parser.add_option("--all_tjetpt", help="all truth jet pT branch name",type=str, default="tjpt")
 parser.add_option("--all_tjeteta", help="all truth jet eta branch name",type=str, default="tjeta")
@@ -63,6 +65,7 @@ parser.add_option("--npvbin", help="size of NPV bins", type=int, default=5)
 parser.add_option("--minpt", help="min truth pt", type=int, default=20)
 parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
 parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
+parser.add_option("--fakept", help="minmum (calibrated) reco pT for fake", type=float, default=20)
 
 (options, args) = parser.parse_args()
 
@@ -179,6 +182,15 @@ def readRoot():
   else:
     has_reco_mindr = True
     print '== \''+options.jetmindr+'\' branch being read as reco jet mindrs =='
+  if options.jetisPU not in branches: print '== \''+options.jetisPU+'\' branch does not exist; not calculating fake rate=='  
+  else:
+    has_jetisPU = True
+    print '== \''+options.jetisPU+'\' branch being read as indicator that reco jet is PU =='
+  if options.jeteta not in branches: print '== \''+options.jeteta+'\' branch does not exist; not calculating fake rate=='  
+  else:
+    has_jeteta = True
+    print '== \''+options.jeteta+'\' branch being read as jet etas =='
+  doFake = has_jetisPU and has_jeteta
 
   if absolute:
     if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
@@ -204,6 +216,10 @@ def readRoot():
   etas = []
   mindrs = []
   reco_mindrs = []
+  PU_recopts = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
+  PU_etas = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
+  PU_weights = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
+  store_fakept = float('-inf') #store PU jets down to x to save space; update continuously as gather more data to estimate response at fake pT cutoff
 
   if absolute:
     all_weights = []
@@ -218,8 +234,15 @@ def readRoot():
       tree.GetEntry(jentry)
       
       if not jentry%1000:
-          stdout.write('== \r%d events read ==\n'%jentry)
-          stdout.flush()
+        stdout.write('== \r%d events read ==\n'%jentry)
+        stdout.flush()
+        if jentry>0:
+          arr_truepts = array(truepts)
+          arr_recopts = array(recopts)
+          arr_weights = array(weights)
+          ptdata = arr_recopts[all([arr_truepts>options.fakept,arr_truepts<options.fakept+options.ptbin],axis=0)]
+          weightdata = arr_weights[all([arr_truepts>options.fakept,arr_truepts<options.fakept+options.ptbin],axis=0)]
+          store_fakept = average(ptdata,weights=weightdata)*0.5
 
       jpts = getattr(tree,options.jetpt)
       tjpts = getattr(tree,options.tjetpt)
@@ -240,6 +263,13 @@ def readRoot():
         jmindrs = getattr(tree,options.jetmindr)
         if not len(jmindrs)==len(jpts):
           raise RuntimeError('There should be the same number of reco mindrs as reco jets')
+      if doFake:
+        jisPUs = getattr(tree,options.jetisPU)
+        jetas = getattr(tree,options.jeteta)
+        if not len(jisPUs)==len(jpts):
+          raise RuntimeError('Each reco jet should have an indicator that it is PU or not')
+        if not len(jetas)==len(jpts):
+          raise RuntimeError('There should be the same number of reco etas as reco jets')
       if has_event_weight: event_weight = tree.event_weight*sampweight
 
       truept = []
@@ -248,7 +278,15 @@ def readRoot():
       eta = []
       mindr = []
       reco_mindr = []
+      PU_recopt = []
+      PU_eta = []
       for i,(jpt,tjpt) in enumerate(zip(jpts,tjpts)):
+          if doFake and jpt>store_fakept:
+            jisPU = jisPUs[i]
+            jeta = jetas[i]
+            if jisPU and fabs(jeta)<options.maxeta and fabs(jeta)>options.mineta:
+              PU_recopt.append(jpt) #PU jets - no requirement
+              PU_eta.append(jeta) #PU jets - no requirement
           if has_eta:
             tjeta = tjetas[i]
             if fabs(tjeta)>options.maxeta or fabs(tjeta)<options.mineta: continue
@@ -262,7 +300,6 @@ def readRoot():
           recopt.append(jpt)
           if has_eta: eta.append(tjeta)
           if has_mindr: mindr.append(tjmindr)
-          pdb.set_trace()
           if has_reco_mindr: reco_mindr.append(jmindr)
           if has_event_weight:
             weightjets.append(event_weight)
@@ -278,6 +315,16 @@ def readRoot():
       etas += eta
       mindrs += mindr
       reco_mindrs += reco_mindr
+      if npv in PU_recopts:
+        PU_recopts[npv].append(PU_recopt)
+        PU_etas[npv].append(PU_eta)
+        if has_event_weight: PU_weights[npv].append(event_weight)
+        else: PU_weights[npv].append(1)
+      else:
+        PU_recopts[npv] = [PU_recopt]
+        PU_etas[npv] = [PU_eta]
+        if has_event_weight: PU_weights[npv]=[event_weight]
+        else: PU_weights[npv]=[1]
 
       if absolute:
         all_tjpts = getattr(tree,options.all_tjetpt)
@@ -311,6 +358,7 @@ def readRoot():
         all_weights += all_weightjets
         all_etas += all_eta
         all_mindrs += all_mindr
+  #end loop over entries
 
   save(options.submitDir+'/truepts_'+finalmu,truepts)
   save(options.submitDir+'/recopts_'+finalmu,recopts)
@@ -320,6 +368,10 @@ def readRoot():
   if has_mindr: save(options.submitDir+'/mindrs_'+finalmu,mindrs)
   if has_reco_mindr: save(options.submitDir+'/reco_mindrs_'+finalmu,reco_mindrs)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
+  if doFake:
+    pickle.dump(PU_recopts,open(options.submitDir+'/PU_recopts_'+finalmu+'.p','wb'))
+    pickle.dump(PU_etas,open(options.submitDir+'/PU_etas_'+finalmu+'.p','wb'))
+    pickle.dump(PU_weights,open(options.submitDir+'/PU_weights_'+finalmu+'.p','wb'))
 
   if absolute:
     save(options.submitDir+'/all_truepts_'+finalmu,all_truepts)
@@ -459,6 +511,23 @@ def fitres(params=[]):
   else:
     print '== '+filename+' does not exist; no reco mindR cuts set =='
     reco_mindr_cuts = [True]*len(truepts) 
+
+  filenames = [options.submitDir+'/PU_recopts_'+options.identifier+'.p',
+               options.submitDir+'/PU_etas_'+options.identifier+'.p',
+               options.submitDir+'/PU_weights_'+options.identifier+'.p']
+  doFake = True 
+  for filename in filenames:
+    if not os.path.exists(filename) and doFake:
+      print '== '+filename+' does not exist; not calculating fake rates'
+      doFake = False
+  if doFake:
+    for filename in filenames: print '== Loading file <'+filename+'> for fake jet calculation =='
+    PU_recopts = pickle.load(open(filenames[0],'rb'))
+    PU_etas = pickle.load(open(filenames[1],'rb'))
+    PU_weights = pickle.load(open(filenames[2],'rb'))
+    if not (PU_recopts.keys()==PU_etas.keys() and PU_recopts.keys()==PU_weights.keys()): raise RuntimeError('NPVs don\'t match between fake jet files')
+    for k in PU_recopts.keys():
+      if not (len(PU_recopts[k])==len(PU_etas[k]) and len(PU_recopts[k])==len(PU_etas[k])): raise RuntimeError('Don\'t have same number of events in fake jet files for NPV = '+k)
 
   maxpt = options.maxpt
   if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
@@ -1240,6 +1309,48 @@ def fitres(params=[]):
   plt.legend(loc='upper right',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
+
+  #fake jets
+  if doFake:
+    fakejetmults = {npv: [] for npv in npvedges[1:]} 
+    fakeweights = {npv: [] for npv in npvedges[1:]} 
+    fakejetmults_avg = {npv: 0 for npv in npvedges[1:]} 
+    fakejetmults_err = {npv: 0 for npv in npvedges[1:]} 
+    try:
+      gfakejetpts = {npv: g(options.fakept,*Ropts[npv]) for npv in npvedges[1:]} 
+      for npv in range(options.minnpv,options.maxnpv):
+        npvedge = min([npve for npve in npvedges[1:] if npve>=npv])
+        gfakejetpt = gfakejetpts[npvedge]
+        for ept,eeta,eweight in zip(PU_recopts[npv],PU_etas[npv],PU_weights[npv]):
+          if not len(ept)==len(eeta):
+            doFake=False
+            raise RuntimeError('== Different length of reco pTs and reco etas for fake jets. Not storing fake jet information. ==')
+          ept = array(ept)
+          eeta = array(eeta)
+          fakejetmult = len(ept[all([ept>gfakejetpt,abs(eeta)<options.maxeta,abs(eeta)>options.mineta],axis=0)])
+          fakejetmults[npvedge].append(fakejetmult)
+          fakeweights[npvedge].append(eweight)
+      for npvbin,npvedge in enumerate(npvedges):
+        if npvbin==0: continue
+        data = array(fakejetmults[npvedge])
+        weights = array(fakeweights[npvedge])
+        n,bins,patches = plt.hist(data,normed=True,bins=max(data),weights=weights,facecolor='b',histtype='stepfilled',label='NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin]))
+        plt.xlabel('Fake Jet Multiplicity $(p_T>20$ GeV)')
+        plt.ylabel('a.u.')
+        plt.legend(loc='upper right',frameon=False,numpoints=1)
+        plt.savefig(options.plotDir+'/fakejets'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+        (mu,mu_err,sigma,sigma_err) = distribution_values(data,weights,'mean')
+        fakejetmults_avg[npvedge] = mu
+        fakejetmults_err[npvedge] = mu_err
+      plt.errorbar(npvedges[1:],[fakejetmults_avg[npvedge] for npvedge in npvedges[1:]],yerr=[fakejetmults_err[npvedge] for npvedge in npvedges[1:]],color='b',linestyle='-')
+      plt.xlabel('NPV')
+      plt.ylabel('Fake Jet Multiplicity $(p_T>20$ GeV)')
+      plt.ylim(0,max([fakejetmults_avg[npvedge] for npvedge in npvedges[1:]])+1) 
+      #plt.legend(loc='upper right',frameon=False,numpoints=1)
+      plt.savefig(options.plotDir+'/fakejet_NPV'+'_'+options.central+'_'+identifier+'.png')
+      plt.close()
+    except: print '== Error in fake jet calculation ==' 
 
   if absolute:
     pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
