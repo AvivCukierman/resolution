@@ -1,4 +1,4 @@
-from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray,sign
+from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray,sign,zeros
 import os
 import numpy
 from numpy import save
@@ -131,8 +131,8 @@ rc('text', usetex=True)
 #plt.style.use('atlas')
 import matplotlib.mlab as mlab
 
+import ROOT as r
 def readRoot():
-  import ROOT as r
   from sys import stdout,argv
   from math import fabs
   finalmu = options.identifier 
@@ -1244,6 +1244,8 @@ def fitres(params=[]):
       incl_efficiencies_fom.append(efficiency_fom)
       incl_efficiencies_err_fom.append(efficiency_err_fom)
 
+  f = r.TFile(options.submitDir+'/'+options.central+'_'+identifier+'.root','recreate')
+  
   indices = all([npvs>=options.minnpv,npvs<options.maxnpv,truepts>=options.minpt,truepts<options.maxpt],axis=0)
   plt.plot(truepts[indices],incl_ptests[indices],'.')
   plt.errorbar(avgtruept,incl_calmus,color='g',marker='o',linestyle='',yerr=incl_calmu_errs)
@@ -1271,6 +1273,10 @@ def fitres(params=[]):
   plt.ylim(.90,1.1)
   plt.savefig(options.plotDir+'/jetclosure_pttrue_zoom'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
+  #root
+  t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(incl_calmuRs),zeros(len(avgtruept)),array(incl_calmuR_errs))
+  t.SetName('jetclosure_pttrue_NPVincl')
+  t.Write()
 
   if absolute:
     plt.errorbar(avgtruept,incl_efficiencies,color='g',marker='o',linestyle='',yerr=incl_efficiencies_err)
@@ -1288,6 +1294,10 @@ def fitres(params=[]):
     plt.ylim(.50,1.1)
     plt.savefig(options.plotDir+'/jetefficiency_fom_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
     plt.close()
+    #root
+    t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(incl_efficiencies_fom),zeros(len(avgtruept)),array(incl_efficiencies_err_fom))
+    t.SetName('jetefficiency_pttrue_NPVincl')
+    t.Write()
 
   sigma_calculation = incl_sigmas
   sigma_err_calculation = incl_sigma_errs
@@ -1299,6 +1309,10 @@ def fitres(params=[]):
   plt.legend(loc='upper left',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigma_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
+  #root
+  t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(sigma_calculation),zeros(len(avgtruept)),array(sigma_err_calculation))
+  t.SetName('jetsigma_pttrue_NPVincl')
+  t.Write()
   
   sigma_calculation = incl_sigmaRs 
   sigma_err_calculation = incl_sigmaR_errs
@@ -1310,6 +1324,10 @@ def fitres(params=[]):
   plt.legend(loc='upper right',frameon=False,numpoints=1)
   plt.savefig(options.plotDir+'/jetsigmaR_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
+  #root
+  t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(sigma_calculation),zeros(len(avgtruept)),array(sigma_err_calculation))
+  t.SetName('jetsigmaR_pttrue_NPVincl')
+  t.Write()
 
   #fake jets
   if doFake:
@@ -1344,7 +1362,10 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(data,weights,'mean')
         fakejetmults_avg[npvedge] = mu
         fakejetmults_err[npvedge] = mu_err
-      plt.errorbar(array(npvedges[1:])-0.5*options.npvbin,[fakejetmults_avg[npvedge] for npvedge in npvedges[1:]],yerr=[fakejetmults_err[npvedge] for npvedge in npvedges[1:]],color='b',linestyle='-')
+      x = array(npvedges[1:])-0.5*options.npvbin
+      y = [fakejetmults_avg[npvedge] for npvedge in npvedges[1:]]
+      yerr = [fakejetmults_err[npvedge] for npvedge in npvedges[1:]]
+      plt.errorbar(x,y,yerr=yerr,color='b',linestyle='-')
       plt.xlabel('NPV')
       plt.ylabel('Fake Jet Multiplicity $(p_T>20$ GeV)')
       plt.xlim(npvedges[0],npvedges[len(npvedges)-1])
@@ -1352,10 +1373,16 @@ def fitres(params=[]):
       #plt.legend(loc='upper right',frameon=False,numpoints=1)
       plt.savefig(options.plotDir+'/fakejets_NPV'+'_'+options.central+'_'+identifier+'.png')
       plt.close()
+      #root
+      t = r.TGraphErrors(len(x),array(x),array(y),zeros(len(x)),array(yerr))
+      t.SetName('fakejets_NPV')
+      t.Write()
 
       pickle.dump(fakejetmults_avg,open(options.submitDir+'/fakejetmults_avg_'+options.central+'_'+identifier+'.p','wb'))
       pickle.dump(fakejetmults_err,open(options.submitDir+'/fakejetmults_err_'+options.central+'_'+identifier+'.p','wb'))
     except Exception,e: print 'Error in fake jet calculation: '+str(e) 
+
+  f.Close()
 
   if absolute:
     pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
