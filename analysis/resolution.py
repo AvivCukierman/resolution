@@ -261,6 +261,7 @@ def readRoot():
           raise RuntimeError('There should be the same number of truth mindrs as truth jets')
       if has_reco_mindr:
         jmindrs = getattr(tree,options.jetmindr)
+        if options.reco_mindr==0: jmindrs = [1]*len(jpts) #if reco mindr cut is 0, don't care what they actually are
         if not len(jmindrs)==len(jpts):
           raise RuntimeError('There should be the same number of reco mindrs as reco jets')
       if doFake:
@@ -1343,14 +1344,18 @@ def fitres(params=[]):
         (mu,mu_err,sigma,sigma_err) = distribution_values(data,weights,'mean')
         fakejetmults_avg[npvedge] = mu
         fakejetmults_err[npvedge] = mu_err
-      plt.errorbar(npvedges[1:],[fakejetmults_avg[npvedge] for npvedge in npvedges[1:]],yerr=[fakejetmults_err[npvedge] for npvedge in npvedges[1:]],color='b',linestyle='-')
+      plt.errorbar(array(npvedges[1:])-0.5*options.npvbin,[fakejetmults_avg[npvedge] for npvedge in npvedges[1:]],yerr=[fakejetmults_err[npvedge] for npvedge in npvedges[1:]],color='b',linestyle='-')
       plt.xlabel('NPV')
       plt.ylabel('Fake Jet Multiplicity $(p_T>20$ GeV)')
+      plt.xlim(npvedges[0],npvedges[len(npvedges)-1])
       plt.ylim(0,max([fakejetmults_avg[npvedge] for npvedge in npvedges[1:]])+1) 
       #plt.legend(loc='upper right',frameon=False,numpoints=1)
-      plt.savefig(options.plotDir+'/fakejet_NPV'+'_'+options.central+'_'+identifier+'.png')
+      plt.savefig(options.plotDir+'/fakejets_NPV'+'_'+options.central+'_'+identifier+'.png')
       plt.close()
-    except: print '== Error in fake jet calculation ==' 
+
+      pickle.dump(fakejetmults_avg,open(options.submitDir+'/fakejetmults_avg_'+options.central+'_'+identifier+'.p','wb'))
+      pickle.dump(fakejetmults_err,open(options.submitDir+'/fakejetmults_err_'+options.central+'_'+identifier+'.p','wb'))
+    except Exception,e: print 'Error in fake jet calculation: '+str(e) 
 
   if absolute:
     pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
