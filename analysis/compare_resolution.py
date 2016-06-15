@@ -1,7 +1,7 @@
 import os
 import json
 from pprint import pprint
-from numpy import array
+from numpy import array,sqrt
 from optparse import OptionParser
 import matplotlib.pyplot as plt 
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
@@ -220,78 +220,135 @@ def plot_sigma_pt(collections_list):
     plt.savefig(options.plotDir+'/jetsigmaR_pt_NPV'+str(npv-npvbin)+str(npv)+'_'+options.collections+'.pdf')
     plt.close()
 
-  highlim = float('-inf')
-  lowlim = float('inf')
+  highlim = [float('-inf')]*2
+  lowlim = [float('inf')]*2
   for c in collections_list:
     identifier = c['identifier']
     avgpt = pickle.load(open(options.submitDir+'/'+'avgpttrue_'+identifier+'.p','rb')) #assumes all algorithms have the same avg pT true
     incl_sigmas = pickle.load(open(options.submitDir+'/'+'incl_sigmas_'+identifier+'.p','rb'))
     incl_sigma_errs = pickle.load(open(options.submitDir+'/'+'incl_sigma_errs_'+identifier+'.p','rb'))
+    incl_mus = pickle.load(open(options.submitDir+'/'+'incl_calmus_'+identifier+'.p','rb'))
+    incl_mu_errs = pickle.load(open(options.submitDir+'/'+'incl_calmu_errs_'+identifier+'.p','rb'))
 
-    plt.errorbar(avgpt,incl_sigmas,yerr=incl_sigma_errs,color=c['color'],linestyle=c['ls'],label=c['label'])
-    highlim = max(highlim,max(incl_sigmas))
-    lowlim = min(lowlim,min(incl_sigmas))
-  #ATLAS style
-  axes = plt.axes()
-  if atlas_style:
-    axes.xaxis.set_minor_locator(AutoMinorLocator())
-    axes.yaxis.set_minor_locator(AutoMinorLocator())
-    plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
-    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]', position=(0., 1.), va='top', ha='right')
-    axes.xaxis.set_label_coords(1., -0.15)
-    axes.yaxis.set_label_coords(-0.15, 1.)
-    axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
-    axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-    axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+'NPV Incl.', transform=axes.transAxes,linespacing=1.5,size='larger')
-  else:
-    plt.errorbar([0],[0],linestyle=' ',label=' NPV Incl.')
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
-  plt.ylim(lowlim-0.5,highlim+2)
-  plt.xlim(min(ptedges),max(ptedges))
-  # legend without errors: 
-  handles, labels = axes.get_legend_handles_labels()
-  handles = [h[0] for h in handles]
-  plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
-  plt.savefig(options.plotDir+'/jetsigma_pt_NPVincl'+'_'+options.collections+'.png')
-  plt.savefig(options.plotDir+'/jetsigma_pt_NPVincl'+'_'+options.collections+'.pdf')
+    x = array(incl_sigmas)
+    dx = array(incl_sigma_errs)
+    y = array(incl_mus)
+    dy = array(incl_mu_errs)
+    #z = x/y
+    #dz = z*sqrt(pow(dx/x,2)+pow(dy/y,2))
+    plt.figure(1)
+    plt.errorbar(avgpt,x,yerr=dx,color=c['color'],linestyle=c['ls'],label=c['label'])
+    plt.figure(2)
+    plt.errorbar(avgpt,y,yerr=dy,color=c['color'],linestyle=c['ls'],label=c['label'])
+    #plt.figure(3)
+    #plt.errorbar(avgpt,z,yerr=dz,color=c['color'],linestyle=c['ls'],label=c['label'])
+    highlim[0] = max(highlim[0],max(x))
+    lowlim[0] = min(lowlim[0],min(x))
+    highlim[1] = max(highlim[1],max(y))
+    lowlim[1] = min(lowlim[1],min(y))
+    #highlim[2] = max(highlim[2],max(z))
+    #lowlim[2] = min(lowlim[2],min(z))
+  for i in range(2):
+    plt.figure(i+1)
+    #ATLAS style
+    axes = plt.axes()
+    if atlas_style:
+      axes.xaxis.set_minor_locator(AutoMinorLocator())
+      axes.yaxis.set_minor_locator(AutoMinorLocator())
+      plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
+      if i==0: plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]', position=(0., 1.), va='top', ha='right')
+      if i==1: plt.ylabel('$\mu[p_T^{reco}]$ [GeV]', position=(0., 1.), va='top', ha='right')
+      axes.xaxis.set_label_coords(1., -0.15)
+      axes.yaxis.set_label_coords(-0.15, 1.)
+      axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+      axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+'NPV Incl.', transform=axes.transAxes,linespacing=1.5,size='larger')
+    else:
+      plt.errorbar([0],[0],linestyle=' ',label=' NPV Incl.')
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      if i==0: plt.ylabel('$\sigma[p_T^{reco}]$ [GeV]')
+      if i==1: plt.ylabel('$\mu[p_T^{reco}]$ [GeV]')
+    plt.ylim(lowlim[i]-0.5,highlim[i]+2)
+    plt.xlim(min(ptedges),max(ptedges))
+    # legend without errors: 
+    handles, labels = axes.get_legend_handles_labels()
+    handles = [h[0] for h in handles]
+    plt.legend(handles[0:len(collections_list)],labels[0:len(collections_list)],loc='upper right',frameon=False,numpoints=1,prop={'size':14})
+    if i==0:
+      plt.savefig(options.plotDir+'/jetsigma_pt_NPVincl'+'_'+options.collections+'.png')
+      plt.savefig(options.plotDir+'/jetsigma_pt_NPVincl'+'_'+options.collections+'.pdf')
+    if i==1:
+      plt.savefig(options.plotDir+'/jetf1_pt_NPVincl'+'_'+options.collections+'.png')
+      plt.savefig(options.plotDir+'/jetf1_pt_NPVincl'+'_'+options.collections+'.pdf')
   plt.close()
 
-  highlim = float('-inf')
-  lowlim = float('inf')
+  highlim = [float('-inf')]*3
+  lowlim = [float('inf')]*3
   for c in collections_list:
     identifier = c['identifier']
     avgpt = pickle.load(open(options.submitDir+'/'+'avgpttrue_'+identifier+'.p','rb')) #assumes all algorithms have the same avg pT true
     incl_sigmas = pickle.load(open(options.submitDir+'/'+'incl_sigmaRs_'+identifier+'.p','rb'))
     incl_sigma_errs = pickle.load(open(options.submitDir+'/'+'incl_sigmaR_errs_'+identifier+'.p','rb'))
+    incl_mus = pickle.load(open(options.submitDir+'/'+'incl_calmuRs_'+identifier+'.p','rb'))
+    incl_mu_errs = pickle.load(open(options.submitDir+'/'+'incl_calmuR_errs_'+identifier+'.p','rb'))
 
-    plt.errorbar(avgpt,incl_sigmas,yerr=incl_sigma_errs,color=c['color'],linestyle=c['ls'],label=c['label'])
-    highlim = max(highlim,max(incl_sigmas))
-    lowlim = min(lowlim,min(incl_sigmas))
-  #ATLAS style
-  axes = plt.axes()
-  if atlas_style:
-    axes.xaxis.set_minor_locator(AutoMinorLocator())
-    axes.yaxis.set_minor_locator(AutoMinorLocator())
-    plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
-    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
-    axes.xaxis.set_label_coords(1., -0.15)
-    axes.yaxis.set_label_coords(-0.15, 1.)
-    axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
-    axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
-    axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+'NPV Incl.', transform=axes.transAxes,linespacing=1.5,size='larger')
-  else:
-    plt.errorbar([0],[0],linestyle=' ',label='NPV Incl.')
-    plt.xlabel('$p_T^{true}$ [GeV]')
-    plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
-  plt.ylim(lowlim-0.05,highlim+.1)
-  plt.xlim(min(ptedges),max(ptedges))
-  # legend without errors: 
-  handles, labels = axes.get_legend_handles_labels()
-  handles = [h[0] for h in handles]
-  plt.legend(handles,labels,loc='upper right',frameon=False,numpoints=1,prop={'size':14})
-  plt.savefig(options.plotDir+'/jetsigmaR_pt_NPVincl'+'_'+options.collections+'.png')
-  plt.savefig(options.plotDir+'/jetsigmaR_pt_NPVincl'+'_'+options.collections+'.pdf')
+    x = array(incl_sigmas)
+    dx = array(incl_sigma_errs)
+    y = array(incl_mus)
+    dy = array(incl_mu_errs)
+    z = x/y
+    dz = z*sqrt(pow(dx/x,2)+pow(dy/y,2))
+    plt.figure(1)
+    plt.errorbar(avgpt,x,yerr=dx,color=c['color'],linestyle=c['ls'],label=c['label'])
+    plt.figure(2)
+    plt.errorbar(avgpt,y,yerr=dy,color=c['color'],linestyle=c['ls'],label=c['label'])
+    plt.figure(3)
+    plt.errorbar(avgpt,z,yerr=dz,color=c['color'],linestyle=c['ls'],label=c['label'])
+    highlim[0] = max(highlim[0],max(x))
+    lowlim[0] = min(lowlim[0],min(x))
+    highlim[1] = max(highlim[1],max(y))
+    lowlim[1] = min(lowlim[1],min(y))
+    highlim[2] = max(highlim[2],max(z))
+    lowlim[2] = min(lowlim[2],min(z))
+  for i in range(3):
+    plt.figure(i+1)
+    #ATLAS style
+    axes = plt.axes()
+    if atlas_style:
+      axes.xaxis.set_minor_locator(AutoMinorLocator())
+      axes.yaxis.set_minor_locator(AutoMinorLocator())
+      plt.xlabel('$p_T^{true}$ [GeV]', position=(1., 0.), va='bottom', ha='right')
+      if i==0: plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
+      if i==1: plt.ylabel('$\mu[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
+      if i==2: plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]/\mu[p_T^{reco}/p_T^{true}]$', position=(0., 1.), va='top', ha='right')
+      axes.xaxis.set_label_coords(1., -0.15)
+      axes.yaxis.set_label_coords(-0.15, 1.)
+      axes.text(0.05,0.9,'ATLAS', transform=axes.transAxes,size='larger',weight='bold',style='oblique')
+      axes.text(0.18,0.9,'Simulation', transform=axes.transAxes,size='larger')
+      axes.text(0.05,0.65,options.plotlabel+'\nPythia8 dijets'+'\n'+'NPV Incl.', transform=axes.transAxes,linespacing=1.5,size='larger')
+    else:
+      plt.errorbar([0],[0],linestyle=' ',label='NPV Incl.')
+      plt.xlabel('$p_T^{true}$ [GeV]')
+      if i==0: plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]$')
+      if i==1: plt.ylabel('$\mu[p_T^{reco}/p_T^{true}]$')
+      if i==2: plt.ylabel('$\sigma[p_T^{reco}/p_T^{true}]/\mu[p_T^{reco}/p_T^{true}]$')
+    if i==0: plt.ylim(0,0.6)
+    if i==1: plt.ylim(0.9,1.1)
+    if i==2: plt.ylim(0,0.6)
+    plt.xlim(min(ptedges),max(ptedges))
+    # legend without errors: 
+    handles, labels = axes.get_legend_handles_labels()
+    handles = [h[0] for h in handles]
+    plt.legend(handles[0:len(collections_list)],labels[0:len(collections_list)],loc='upper right',frameon=False,numpoints=1,prop={'size':14})
+    if i==0:
+      plt.savefig(options.plotDir+'/jetsigmaR_pt_NPVincl'+'_'+options.collections+'.png')
+      plt.savefig(options.plotDir+'/jetsigmaR_pt_NPVincl'+'_'+options.collections+'.pdf')
+    if i==1:
+      plt.savefig(options.plotDir+'/jetclosure_pt_NPVincl'+'_'+options.collections+'.png')
+      plt.savefig(options.plotDir+'/jetclosure_pt_NPVincl'+'_'+options.collections+'.pdf')
+    if i==2:
+      plt.savefig(options.plotDir+'/jetsigmaR-muR_pt_NPVincl'+'_'+options.collections+'.png')
+      plt.savefig(options.plotDir+'/jetsigmaR-muR_pt_NPVincl'+'_'+options.collections+'.pdf')
   plt.close()
 
 collections_list = readCollections()
