@@ -844,7 +844,7 @@ def fitres(params=[]):
       plt.xlabel('$p_T^{reco}/p_T^{true}$')
       plt.ylabel('a.u.')
       plt.xlim(-0.5,3.0)
-      plt.ylim(0,3.5)
+      plt.ylim(0,1.5)
       plt.savefig(options.plotDir+'/closurebin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
       plt.close()
 
@@ -1384,11 +1384,24 @@ def fitres(params=[]):
 
   f.Close()
 
+  pickle.dump(Ropts,open(options.submitDir+'/fit_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(npv_sigmas,open(options.submitDir+'/sigmas_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(npv_sigma_errs,open(options.submitDir+'/sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(npv_sigmaRs,open(options.submitDir+'/sigmaRs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(npv_sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(avgtruept,open(options.submitDir+'/avgpttrue_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.central+'_'+identifier+'.p','wb'))
+
   if absolute:
     pickle.dump(incl_efficiencies,open(options.submitDir+'/incl_efficiencies_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(incl_efficiencies_err,open(options.submitDir+'/incl_efficiency_errs_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(incl_efficiencies_fom,open(options.submitDir+'/incl_efficiencies_fom_'+options.central+'_'+identifier+'.p','wb'))
     pickle.dump(incl_efficiencies_err_fom,open(options.submitDir+'/incl_efficiency_errs_fom_'+options.central+'_'+identifier+'.p','wb'))
+
+  pickle.dump(incl_calmus,open(options.submitDir+'/incl_calmus_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_calmu_errs,open(options.submitDir+'/incl_calmu_errs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_calmuRs,open(options.submitDir+'/incl_calmuRs_'+options.central+'_'+identifier+'.p','wb'))
+  pickle.dump(incl_calmuR_errs,open(options.submitDir+'/incl_calmuR_errs_'+options.central+'_'+identifier+'.p','wb'))
 
   pickle.dump(incl_sigmas,open(options.submitDir+'/incl_sigmas_'+options.central+'_'+identifier+'.p','wb'))
   pickle.dump(incl_sigma_errs,open(options.submitDir+'/incl_sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
@@ -1396,14 +1409,7 @@ def fitres(params=[]):
   pickle.dump(incl_sigmaR_errs,open(options.submitDir+'/incl_sigmaR_errs_'+options.central+'_'+identifier+'.p','wb'))
 
 
-  return Ropts,npv_sigmas,npv_sigma_errs,npv_sigmaRs,npv_sigmaR_errs,avgtruept,ptedges
+  return 
 
 import pickle
-(fit,sigmas,sigma_errs,sigmaRs,sigmaR_errs,pttrue,ptedges) = fitres()
-pickle.dump(fit,open(options.submitDir+'/fit_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(sigmas,open(options.submitDir+'/sigmas_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(sigma_errs,open(options.submitDir+'/sigma_errs_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(sigmaRs,open(options.submitDir+'/sigmaRs_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(sigmaR_errs,open(options.submitDir+'/sigmaR_errs_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(pttrue,open(options.submitDir+'/avgpttrue_'+options.central+'_'+identifier+'.p','wb'))
-pickle.dump(ptedges,open(options.submitDir+'/ptedges_'+options.central+'_'+identifier+'.p','wb'))
+fitres()
