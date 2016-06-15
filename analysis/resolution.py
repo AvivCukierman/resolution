@@ -66,6 +66,7 @@ parser.add_option("--minpt", help="min truth pt", type=int, default=20)
 parser.add_option("--maxpt", help="max truth pt", type=int, default=80)
 parser.add_option("--ptbin", help="size of pT bins", type=int, default=2)
 parser.add_option("--fakept", help="minmum (calibrated) reco pT for fake", type=float, default=20)
+parser.add_option("--doFake", help="calculate fake rate", action="store_true", default=False)
 
 (options, args) = parser.parse_args()
 
@@ -182,15 +183,16 @@ def readRoot():
   else:
     has_reco_mindr = True
     print '== \''+options.jetmindr+'\' branch being read as reco jet mindrs =='
-  if options.jetisPU not in branches: print '== \''+options.jetisPU+'\' branch does not exist; not calculating fake rate=='  
-  else:
-    has_jetisPU = True
-    print '== \''+options.jetisPU+'\' branch being read as indicator that reco jet is PU =='
-  if options.jeteta not in branches: print '== \''+options.jeteta+'\' branch does not exist; not calculating fake rate=='  
-  else:
-    has_jeteta = True
-    print '== \''+options.jeteta+'\' branch being read as jet etas =='
-  doFake = has_jetisPU and has_jeteta
+  if options.doFake:
+    if options.jetisPU not in branches: print '== \''+options.jetisPU+'\' branch does not exist; not calculating fake rate=='  
+    else:
+      has_jetisPU = True
+      print '== \''+options.jetisPU+'\' branch being read as indicator that reco jet is PU =='
+    if options.jeteta not in branches: print '== \''+options.jeteta+'\' branch does not exist; not calculating fake rate=='  
+    else:
+      has_jeteta = True
+      print '== \''+options.jeteta+'\' branch being read as jet etas =='
+  doFake = has_jetisPU and has_jeteta and options.doFake
 
   if absolute:
     if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
@@ -516,7 +518,7 @@ def fitres(params=[]):
   filenames = [options.submitDir+'/PU_recopts_'+options.identifier+'.p',
                options.submitDir+'/PU_etas_'+options.identifier+'.p',
                options.submitDir+'/PU_weights_'+options.identifier+'.p']
-  doFake = True 
+  doFake = options.doFake 
   for filename in filenames:
     if not os.path.exists(filename) and doFake:
       print '== '+filename+' does not exist; not calculating fake rates'
