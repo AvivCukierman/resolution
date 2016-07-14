@@ -1315,6 +1315,16 @@ def fitres(params=[]):
   t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(sigma_calculation),zeros(len(avgtruept)),array(sigma_err_calculation))
   t.SetName('jetsigma_pttrue_NPVincl')
   t.Write()
+
+  x = array(sigma_calculation)
+  dx = array(sigma_err_calculation)
+  y = array(incl_calmuRs)
+  dy = array(incl_calmuR_errs)
+  z = x/y
+  dz = z*sqrt(pow(dx/x,2)+pow(dy/y,2))
+  t = r.TGraphErrors(len(avgtruept),array(avgtruept),z,zeros(len(avgtruept)),dz)
+  t.SetName('jetsigma-muR_pttrue_NPVincl')
+  t.Write()
   
   sigma_calculation = incl_sigmaRs 
   sigma_err_calculation = incl_sigmaR_errs
@@ -1329,6 +1339,16 @@ def fitres(params=[]):
   #root
   t = r.TGraphErrors(len(avgtruept),array(avgtruept),array(sigma_calculation),zeros(len(avgtruept)),array(sigma_err_calculation))
   t.SetName('jetsigmaR_pttrue_NPVincl')
+  t.Write()
+
+  x = array(sigma_calculation)
+  dx = array(sigma_err_calculation)
+  y = array(incl_calmuRs)
+  dy = array(incl_calmuR_errs)
+  z = x/y
+  dz = z*sqrt(pow(dx/x,2)+pow(dy/y,2))
+  t = r.TGraphErrors(len(avgtruept),array(avgtruept),z,zeros(len(avgtruept)),dz)
+  t.SetName('jetsigmaR-muR_pttrue_NPVincl')
   t.Write()
 
   #fake jets
