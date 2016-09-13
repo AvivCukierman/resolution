@@ -1,4 +1,4 @@
-from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray,sign,zeros
+from numpy import load,log,linspace,digitize,array,mean,std,exp,all,average,sqrt,asarray,sign,zeros,histogram2d,arange
 import os
 import numpy
 from numpy import save
@@ -192,7 +192,9 @@ def readRoot():
     else:
       has_jeteta = True
       print '== \''+options.jeteta+'\' branch being read as jet etas =='
-  doFake = has_jetisPU and has_jeteta and options.doFake
+    doFake = has_jetisPU and has_jeteta
+  else:
+    doFake = False
 
   if absolute:
     if options.all_tjetpt not in branches: raise RuntimeError(options.all_tjetpt+' branch does not exist. This is the branch containing all the truth jet pTs. Required for absolute/efficiency calculation.')
@@ -921,6 +923,7 @@ def fitres(params=[]):
     plt.ylim(0,options.maxpt+10)
     plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
     plt.close()
+
     
     #closure = estpts/truepts
     plt.plot(truepts[indices],incl_resests[indices],'.')
@@ -1257,6 +1260,19 @@ def fitres(params=[]):
   plt.ylim(0,options.maxpt+10)
   plt.savefig(options.plotDir+'/jetf1_pttrue'+'_NPVincl'+'_'+options.central+'_'+identifier+'.png')
   plt.close()
+
+  nbins = 100
+  H, xedges, yedges = histogram2d(incl_ptests[indices],incl_ptests[indices]/recopts[indices],weights=weights[indices],bins=[arange(0,60+0.5/nbins,60./nbins),arange(1.0,2.0+0.5/nbins,2.0/nbins)])
+  #extent = [0, 0.5, 0, 0.5]
+  #plt.imshow(H, extent=extent, interpolation='none')
+  plt.pcolor(xedges,yedges,H.T,cmap=plt.get_cmap('Blues'))
+  plt.xlabel('$p_T^{calib}$')
+  plt.ylabel('$p_T^{calib}/p_T^{preJES}$')
+  plt.xlim(0,60)
+  plt.ylim(1,2)
+  plt.savefig(options.plotDir+'/calib_corr_2d_'+options.central+'_'+identifier+'.png')
+  plt.close()
+
   
   #closure = incl_ptests/truepts
   plt.plot(truepts[indices],incl_resests[indices],'.')
