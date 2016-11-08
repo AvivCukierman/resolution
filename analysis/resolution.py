@@ -44,6 +44,8 @@ parser.add_option("--event_weight", help="event weight branch name",type=str, de
 parser.add_option("--jetisPU", help="branch name for is pileup indicator on reco jets (only necessary for fake calculation)",type=str, default="j0isPU")
 parser.add_option("--jeteta", help="branch name for jet eta (only necessary for fake calculation)",type=str, default="j0eta")
 parser.add_option("--jetwidth", help="branch name for jet width (only used for plotting)",type=str, default="j0width")
+parser.add_option("--jetnumCons", help="branch name for jet number of constituents (only used for plotting)",type=str, default="j0numCons")
+parser.add_option("--jetdRCons", help="branch name for constituent-jet dR (only used for plotting)",type=str, default="j0dRCons")
 ## All truth jets (only required if using absolute scale) 
 parser.add_option("--all_tjetpt", help="all truth jet pT branch name",type=str, default="tjpt")
 parser.add_option("--all_tjeteta", help="all truth jet eta branch name",type=str, default="tjeta")
@@ -86,7 +88,9 @@ if not os.path.exists(options.plotDir):
 identifier = options.identifier
 do_all = False
 if options.cut==float('-inf'): do_all=True 
-if not do_all: identifier+='_c'+str(int(options.cut))
+if not do_all:
+  identifier+='_JetCalibrationToolComp'
+  identifier+='_c'+str(int(options.cut))
 
 absolute = options.absolute
 
@@ -169,6 +173,8 @@ def readRoot():
   has_eta = False
   has_mindr = False
   has_width = False
+  has_numCons = False
+  has_dRCons = False
   if options.event_weight not in branches: print '== \''+options.event_weight+'\' branch does not exist; weighting every event the same =='  
   else:
     has_event_weight=True
@@ -185,10 +191,18 @@ def readRoot():
   else:
     has_reco_mindr = True
     print '== \''+options.jetmindr+'\' branch being read as reco jet mindrs =='
-  if options.jetwidth not in branches: print '== \''+options.jetwidth+'\' branch does not exist; no width cuts set on reco jets=='  
+  if options.jetwidth not in branches: print '== \''+options.jetwidth+'\' branch does not exist; reco jet widths not being stored=='  
   else:
     has_width = True
     print '== \''+options.jetwidth+'\' branch being read as reco jet widths =='
+  if options.jetnumCons not in branches: print '== \''+options.jetnumCons+'\' branch does not exist; reco jet number of constituents not being stored=='  
+  else:
+    has_numCons = True
+    print '== \''+options.jetnumCons+'\' branch being read as reco jet number of constituents =='
+  if options.jetdRCons not in branches: print '== \''+options.jetdRCons+'\' branch does not exist; reco jet dR to constituents not being stored=='  
+  else:
+    has_dRCons = True
+    print '== \''+options.jetdRCons+'\' branch being read as reco jet dR to constituents =='
   if options.doFake:
     if options.jetisPU not in branches: print '== \''+options.jetisPU+'\' branch does not exist; not calculating fake rate=='  
     else:
@@ -227,6 +241,8 @@ def readRoot():
   mindrs = []
   reco_mindrs = []
   widths = []
+  numConss = []
+  dRConss = []
   PU_recopts = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
   PU_etas = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
   PU_weights = {npv: [] for npv in range(options.minnpv,options.maxnpv)}
@@ -279,6 +295,14 @@ def readRoot():
         jwidths = getattr(tree,options.jetwidth)
         if not len(jwidths)==len(jpts):
           raise RuntimeError('There should be the same number of reco widths as reco jets')
+      if has_numCons:
+        jnumConss = getattr(tree,options.jetnumCons)
+        if not len(jnumConss)==len(jpts):
+          raise RuntimeError('There should be the same number of reco numCons as reco jets')
+      if has_dRCons:
+        jdRConss = getattr(tree,options.jetdRCons)
+        if not len(jdRConss)==len(jpts):
+          raise RuntimeError('There should be the same number of reco dRCons as reco jets')
       if doFake:
         jisPUs = getattr(tree,options.jetisPU)
         jetas = getattr(tree,options.jeteta)
@@ -295,6 +319,8 @@ def readRoot():
       mindr = []
       reco_mindr = []
       width = []
+      numCons = []
+      dRCons = []
       PU_recopt = []
       PU_eta = []
       for i,(jpt,tjpt) in enumerate(zip(jpts,tjpts)):
@@ -315,12 +341,18 @@ def readRoot():
             #if jmindr<options.reco_mindr: continue
           if has_width:
             jwidth = jwidths[i]
+          if has_numCons:
+            jnumCons = jnumConss[i]
+          if has_dRCons:
+            jdRCons = jdRConss[i]
           truept.append(tjpt)
           recopt.append(jpt)
           if has_eta: eta.append(tjeta)
           if has_mindr: mindr.append(tjmindr)
           if has_reco_mindr: reco_mindr.append(jmindr)
           if has_width: width.append(jwidth)
+          if has_numCons: numCons.append(jnumCons)
+          if has_dRCons: dRCons.append(jdRCons)
           if has_event_weight:
             weightjets.append(event_weight)
           else: weightjets.append(1) #set all events to have the same weight
@@ -336,6 +368,8 @@ def readRoot():
       mindrs += mindr
       reco_mindrs += reco_mindr
       widths += width
+      numConss += numCons
+      dRConss += dRCons
       if npv in PU_recopts:
         PU_recopts[npv].append(PU_recopt)
         PU_etas[npv].append(PU_eta)
@@ -389,6 +423,8 @@ def readRoot():
   if has_mindr: save(options.submitDir+'/mindrs_'+finalmu,mindrs)
   if has_reco_mindr: save(options.submitDir+'/reco_mindrs_'+finalmu,reco_mindrs)
   if has_width: save(options.submitDir+'/widths_'+finalmu,widths)
+  if has_numCons: save(options.submitDir+'/numCons_'+finalmu,numConss)
+  if has_dRCons: save(options.submitDir+'/dRCons_'+finalmu,dRConss)
   if has_event_weight: save(options.submitDir+'/weights_'+finalmu,weights)
   if doFake:
     pickle.dump(PU_recopts,open(options.submitDir+'/PU_recopts_'+finalmu+'.p','wb'))
@@ -544,6 +580,26 @@ def fitres(params=[]):
     has_widths = True
   else:
     print '== '+filename+' does not exist; widths not being plotted =='
+  has_numCons = False
+  filename = options.submitDir+'/'+'numCons_'+options.identifier+'.npy'
+  if os.path.exists(filename):
+    if not options.root: print '== Loading file <'+filename+'> as reco jet numCons =='
+    numCons = load(filename)
+    if not len(numCons)==len(truepts):
+      raise RuntimeError('There should be the same number of numCons as truth jets')
+    has_numCons = True
+  else:
+    print '== '+filename+' does not exist; numCons not being plotted =='
+  has_dRCons = False
+  filename = options.submitDir+'/'+'dRCons_'+options.identifier+'.npy'
+  if os.path.exists(filename):
+    if not options.root: print '== Loading file <'+filename+'> as reco jet dRCons =='
+    dRCons = load(filename)
+    if not len(dRCons)==len(truepts):
+      raise RuntimeError('There should be the same number of dRCons as truth jets')
+    has_dRCons = True
+  else:
+    print '== '+filename+' does not exist; dRCons not being plotted =='
 
   filenames = [options.submitDir+'/PU_recopts_'+options.identifier+'.p',
                options.submitDir+'/PU_etas_'+options.identifier+'.p',
@@ -565,6 +621,11 @@ def fitres(params=[]):
   maxpt = options.maxpt
   if (options.maxpt-options.minpt)%options.ptbin==0: maxpt+=1
   ptedges = range(options.minpt,maxpt,options.ptbin)
+  #JetCalibrationTool comparison
+  belowcutindices = recopts<options.cut
+  newpt = 0.01
+  recopts[belowcutindices] = newpt
+  ##
   cuts = all([truepts>min(ptedges),recopts>options.cut,eta_cuts,mindr_cuts,reco_mindr_cuts],axis=0)
 
   recopts = recopts[cuts]
@@ -628,7 +689,9 @@ def fitres(params=[]):
       ptdata = recopts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       trueptdata = truepts[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
       weightdata = weights[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
-      widthdata = widths[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      if has_widths: widthdata = widths[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      if has_numCons: numConsdata = numCons[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
+      if has_dRCons: dRConsdata = dRCons[all([ptbins==ptbin,npvbins==npvbin],axis=0)]
 
       avgtruept.append(average(trueptdata,weights=weightdata))
       if len(resdata)<100: print 'Low statistics ('+str(len(resdata))+' jets) in bin with pT = ' +str(ptedges[ptbin])+' and NPV between '+str(npvedges[npvbin-1])+' and '+str(npvedges[npvbin])
@@ -752,15 +815,68 @@ def fitres(params=[]):
       avgpt_errs.append(mu_err)
       sigma_errs.append(sigma_err)
 
-      # width plotting
+      # jet properties plotting
       if has_widths:
-        n,bins,patches = plt.hist(widthdata,normed=True,bins=30,weights=weightdata,facecolor='b',histtype='stepfilled')
+        n,bins,patches = plt.hist(widthdata,normed=True,bins=arange(0,0.3,0.01),weights=weightdata,facecolor='b',histtype='stepfilled')
         (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(widthdata,weightdata,'trimmed')
         plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
         plt.xlim(0,0.3)
         plt.xlabel('Jet Width')
         plt.ylabel('a.u.')
         plt.savefig(options.plotDir+'/widthbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+      if has_numCons:
+        n,bins,patches = plt.hist(numConsdata,normed=True,bins=max(numConsdata)-min(numConsdata),weights=weightdata,facecolor='b',histtype='stepfilled')
+        (mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(numConsdata,weightdata,'trimmed')
+        plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        plt.xlim(0,max(numConsdata)+1)
+        plt.xlabel('Number of Constituents in Jet')
+        plt.ylabel('a.u.')
+        plt.savefig(options.plotDir+'/numConsbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+      dRConsbinsize = 0.025
+      if has_dRCons:
+        n,bins,patches = plt.hist(dRConsdata,normed=True,bins=arange(0,0.6,dRConsbinsize),weights=weightdata,facecolor='b',histtype='stepfilled')
+        #(mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(dRConsdata,weightdata,'trimmed')
+        #plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        plt.xlim(0,0.4)
+        plt.xlabel('$\Delta R$ jet-constituents')
+        plt.ylabel('a.u.')
+        plt.savefig(options.plotDir+'/dRConsbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+      if has_dRCons and has_numCons:
+        n,bins,patches = plt.hist(dRConsdata,normed=True,bins=arange(0,0.6,dRConsbinsize),weights=weightdata*numConsdata,facecolor='b',histtype='stepfilled')
+        #(mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(dRConsdata,weightdata,'trimmed')
+        #plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        plt.xlim(0,0.4)
+        plt.xlabel('$\Delta R$ jet-constituents')
+        plt.ylabel('a.u.')
+        plt.savefig(options.plotDir+'/dRConsweightedbin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+        ind = dRConsdata>dRConsbinsize
+        n,bins,patches = plt.hist(dRConsdata[ind],normed=True,bins=arange(0,0.6,dRConsbinsize),weights=weightdata[ind]/dRConsdata[ind],facecolor='b',histtype='stepfilled')
+        axes=plt.gca()
+        ylimup = axes.get_ylim()[1]
+        plt.fill_between([0,dRConsbinsize],[0,0],[ylimup,ylimup],facecolor='b')
+        axes.set_ylim(0,ylimup)
+        #(mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(dRConsdata,weightdata,'trimmed')
+        #plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        plt.xlim(0,0.4)
+        plt.xlabel('$\Delta R$ jet-constituents')
+        plt.ylabel('Normalized Number per Unit Area')
+        plt.savefig(options.plotDir+'/dRCons_area_bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
+        plt.close()
+        n,bins,patches = plt.hist(dRConsdata[ind],normed=True,bins=arange(0,0.6,dRConsbinsize),weights=weightdata[ind]*numConsdata[ind]/dRConsdata[ind],facecolor='b',histtype='stepfilled')
+        axes=plt.gca()
+        ylimup = axes.get_ylim()[1]
+        plt.fill_between([0,dRConsbinsize],[0,0],[ylimup,ylimup],facecolor='b')
+        axes.set_ylim(0,ylimup)
+        #(mu,mu_err,sigma,sigma_err,lower,upper) = distribution_values(dRConsdata,weightdata,'trimmed')
+        #plt.plot((mu,mu),(0,max(n)),'r--',linewidth=2)
+        plt.xlim(0,0.4)
+        plt.xlabel('$\Delta R$ jet-constituents')
+        plt.ylabel('Normalized Number per Unit Area')
+        plt.savefig(options.plotDir+'/dRConsweighted_area_bin%d'%ptbin+'_NPV'+str(npvedges[npvbin-1])+str(npvedges[npvbin])+'_'+options.central+'_'+identifier+'.png')
         plt.close()
 
     if absolute:
